@@ -8,14 +8,33 @@
 
 A comprehensive implementation of Explainable AI (XAI) techniques using SHAP and LIME for machine learning model interpretability. This project provides hands-on experience with state-of-the-art explainability methods for understanding black-box machine learning models.
 
-## 📋 Overview
+## � Cloud Deployment
 
-Explainable AI (XAI) is crucial for building trust in machine learning systems, especially in high-stakes domains like healthcare, finance, and legal systems. This project demonstrates practical implementation of two leading XAI techniques:
+### Vertex AI Deployment
 
-- **SHAP (SHapley Additive exPlanations)**: Provides unified framework for interpreting model predictions based on game theory
-- **LIME (Local Interpretable Model-agnostic Explanations)**: Explains individual predictions by learning local surrogate models
+1. Set up Google Cloud Project and enable Vertex AI API.
+2. Create a GCS bucket for model storage.
+3. Run the deployment script:
 
-The project uses a breast cancer diagnostic dataset to showcase how these techniques can provide insights into medical diagnosis predictions, making AI decisions transparent and interpretable.
+```bash
+python deploy_vertex.py
+```
+
+Replace the placeholders in `deploy_vertex.py` with your project details.
+
+### AWS SageMaker Deployment
+
+1. Set up AWS account and IAM role for SageMaker.
+2. Create an S3 bucket for model storage.
+3. Run the deployment script:
+
+```bash
+python deploy_aws.py
+```
+
+Replace the placeholders in `deploy_aws.py` with your AWS details.
+
+Both deployments will create endpoints for real-time predictions.
 
 ## 🚀 Features
 
@@ -33,9 +52,42 @@ The project uses a breast cancer diagnostic dataset to showcase how these techni
 
 ### Production Features
 - **Model Persistence**: Save and load trained models with explanations
-- **Cloud Deployment Ready**: Vertex AI compatible for production deployment
+- **Cloud Deployment Ready**: Vertex AI and AWS SageMaker compatible for production deployment
 - **Scalable Architecture**: Designed for handling large datasets and multiple models
 - **Documentation**: Comprehensive LaTeX documentation included
+
+## 🚀 Cloud Deployment
+
+### Prerequisites
+- Google Cloud account for Vertex AI deployment
+- AWS account for SageMaker deployment
+- Trained model files (`random_forest_model.pkl`, `label_encoder.pkl`)
+
+### Vertex AI Deployment
+
+1. Set up Google Cloud Project and enable Vertex AI API.
+2. Create a GCS bucket for model storage.
+3. Update `deploy_vertex.py` with your project ID, region, and bucket name.
+4. Run the deployment script:
+
+```bash
+pip install google-cloud-aiplatform google-cloud-storage
+python deploy_vertex.py
+```
+
+### AWS SageMaker Deployment
+
+1. Set up AWS account and IAM role for SageMaker.
+2. Create an S3 bucket for model storage.
+3. Update `deploy_aws.py` with your region and bucket name.
+4. Run the deployment script:
+
+```bash
+pip install boto3 sagemaker
+python deploy_aws.py
+```
+
+Both deployments will create endpoints for real-time predictions with explainability.
 
 ## 📁 Project Structure
 
@@ -76,8 +128,8 @@ Sem-6/
 
 #### Step 1: Clone Repository
 ```bash
-git clone <repository-url>
-cd Sem-6
+git clone https://github.com/PriyanshuKSharma/xai_explainaibility.git
+cd xai_explainaibility
 ```
 
 #### Step 2: Create Virtual Environment
@@ -120,6 +172,155 @@ pip install google-colab
 jupyter notebook XAI_algo.ipynb
 # or
 jupyter lab XAI_algo.ipynb
+```
+
+## ☁️ Deploy on Vertex AI and AWS
+
+This repository now includes a shared inference container (`app.py`, `Dockerfile`) and cloud scripts for both platforms.
+
+### What was added
+
+- `app.py`: FastAPI inference app with:
+  - `POST /predict` (Vertex AI route)
+  - `POST /invocations` and `GET /ping` (SageMaker routes)
+  - `GET /health`
+- `Dockerfile`: builds a self-contained image and trains `random_forest_model.pkl` during build.
+- `scripts/deploy_vertex.sh`: end-to-end Vertex AI deployment.
+- `scripts/deploy_sagemaker.sh`: end-to-end SageMaker deployment.
+
+### 1. Local smoke test (recommended before cloud deployment)
+
+```bash
+docker build -t xai-inference:local .
+docker run --rm -p 8080:8080 xai-inference:local
+```
+
+Then in a second terminal:
+
+```bash
+python3 - <<'PY'
+import json
+import urllib.request
+import pandas as pd
+
+row = pd.read_csv("breast-cancer.csv").iloc[0]
+instance = row.drop(labels=["id", "diagnosis"]).to_dict()
+payload = {"instances": [instance]}
+
+req = urllib.request.Request(
+    "http://localhost:8080/predict",
+    data=json.dumps(payload).encode("utf-8"),
+    headers={"Content-Type": "application/json"},
+    method="POST",
+)
+with urllib.request.urlopen(req, timeout=30) as resp:
+    print(resp.status)
+    print(resp.read().decode("utf-8"))
+PY
+```
+
+### 2. Deploy to Google Vertex AI
+
+Prerequisites:
+- `gcloud` CLI authenticated (`gcloud auth login`)
+- Project billing enabled
+- Docker installed
+
+```bash
+export PROJECT_ID="<your-gcp-project-id>"
+export REGION="us-central1"
+export REPO_NAME="xai-images"
+export IMAGE_NAME="xai-inference"
+export IMAGE_TAG="v1"
+export MODEL_DISPLAY_NAME="xai-rf-model"
+export ENDPOINT_DISPLAY_NAME="xai-rf-endpoint"
+
+./scripts/deploy_vertex.sh
+```
+
+After deployment, test online prediction:
+
+```bash
+ENDPOINT_ID="<from-script-output>"
+cat > /tmp/vertex_request.json <<'JSON'
+{
+  "instances": [
+    {
+      "radius_mean": 17.99,
+      "texture_mean": 10.38,
+      "perimeter_mean": 122.8,
+      "area_mean": 1001.0,
+      "smoothness_mean": 0.1184,
+      "compactness_mean": 0.2776,
+      "concavity_mean": 0.3001,
+      "concave points_mean": 0.1471,
+      "symmetry_mean": 0.2419,
+      "fractal_dimension_mean": 0.07871,
+      "radius_se": 1.095,
+      "texture_se": 0.9053,
+      "perimeter_se": 8.589,
+      "area_se": 153.4,
+      "smoothness_se": 0.006399,
+      "compactness_se": 0.04904,
+      "concavity_se": 0.05373,
+      "concave points_se": 0.01587,
+      "symmetry_se": 0.03003,
+      "fractal_dimension_se": 0.006193,
+      "radius_worst": 25.38,
+      "texture_worst": 17.33,
+      "perimeter_worst": 184.6,
+      "area_worst": 2019.0,
+      "smoothness_worst": 0.1622,
+      "compactness_worst": 0.6656,
+      "concavity_worst": 0.7119,
+      "concave points_worst": 0.2654,
+      "symmetry_worst": 0.4601,
+      "fractal_dimension_worst": 0.1189
+    }
+  ]
+}
+JSON
+
+gcloud ai endpoints predict "${ENDPOINT_ID}" \
+  --region="${REGION}" \
+  --json-request=/tmp/vertex_request.json
+```
+
+### 3. Deploy to AWS SageMaker
+
+Prerequisites:
+- `aws` CLI configured (`aws configure`)
+- Docker installed
+- SageMaker execution role ARN available
+
+```bash
+export AWS_REGION="us-east-1"
+export AWS_ACCOUNT_ID="<your-aws-account-id>"
+export ECR_REPO_NAME="xai"
+export IMAGE_NAME="inference"
+export IMAGE_TAG="v1"
+export SAGEMAKER_ROLE_ARN="arn:aws:iam::<account-id>:role/<sagemaker-execution-role>"
+export ENDPOINT_NAME="xai-rf-endpoint"
+export INSTANCE_TYPE="ml.m5.large"
+
+./scripts/deploy_sagemaker.sh
+```
+
+Invoke endpoint:
+
+```bash
+cat > /tmp/sagemaker_request.json <<'JSON'
+{"instances":[{"radius_mean":17.99,"texture_mean":10.38,"perimeter_mean":122.8,"area_mean":1001.0,"smoothness_mean":0.1184,"compactness_mean":0.2776,"concavity_mean":0.3001,"concave points_mean":0.1471,"symmetry_mean":0.2419,"fractal_dimension_mean":0.07871,"radius_se":1.095,"texture_se":0.9053,"perimeter_se":8.589,"area_se":153.4,"smoothness_se":0.006399,"compactness_se":0.04904,"concavity_se":0.05373,"concave points_se":0.01587,"symmetry_se":0.03003,"fractal_dimension_se":0.006193,"radius_worst":25.38,"texture_worst":17.33,"perimeter_worst":184.6,"area_worst":2019.0,"smoothness_worst":0.1622,"compactness_worst":0.6656,"concavity_worst":0.7119,"concave points_worst":0.2654,"symmetry_worst":0.4601,"fractal_dimension_worst":0.1189}]}
+JSON
+
+aws sagemaker-runtime invoke-endpoint \
+  --region "${AWS_REGION}" \
+  --endpoint-name "${ENDPOINT_NAME}" \
+  --content-type "application/json" \
+  --body fileb:///tmp/sagemaker_request.json \
+  /tmp/sagemaker_response.json
+
+cat /tmp/sagemaker_response.json
 ```
 
 ## 📊 Dataset Information
