@@ -63,7 +63,7 @@ pip install pandas numpy scikit-learn matplotlib seaborn shap lime joblib plotly
 ## 2. AWS (SageMaker) Manual Flow
 
 ### A. Initial setup in console
-1. Open AWS Console and select region (for example, `us-east-1`).
+1. Open AWS Console and select region (for example, `ap-south-1`).
 2. Go to IAM and ensure you have permissions for SageMaker, ECR, S3, and CloudWatch.
 3. Create/verify a SageMaker execution role.
 

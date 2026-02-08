@@ -347,7 +347,7 @@ Prerequisites:
 - SageMaker execution role ARN available
 
 ```bash
-export AWS_REGION="us-east-1"
+export AWS_REGION="ap-south-1"
 export AWS_ACCOUNT_ID="<your-aws-account-id>"
 export ECR_REPO_NAME="xai"
 export IMAGE_NAME="inference"
