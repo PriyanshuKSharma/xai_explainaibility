@@ -236,6 +236,13 @@ gcloud auth application-default set-quota-project mqi-ims
 gcloud services enable aiplatform.googleapis.com storage.googleapis.com
 ```
 
+Generate model artifacts first (required):
+
+```bash
+python train_model.py
+ls -lh random_forest_model.pkl label_encoder.pkl
+```
+
 ```bash
 export PROJECT_ID="mqi-ims"
 export REGION="us-central1"
@@ -246,6 +253,12 @@ export MODEL_DISPLAY_NAME="xai-rf-model"
 export ENDPOINT_DISPLAY_NAME="xai-rf-endpoint"
 
 ./scripts/deploy_vertex.sh
+```
+
+If you are using the Python-based flow instead of the shell script:
+
+```bash
+python deploy_vertex.py
 ```
 
 After deployment, test online prediction:
