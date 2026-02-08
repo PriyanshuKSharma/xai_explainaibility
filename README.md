@@ -147,24 +147,11 @@ xai-env\Scripts\activate     # Windows
 
 #### Step 3: Install Dependencies
 ```bash
-# Core ML libraries
-pip install pandas==1.5.3
-pip install numpy==1.24.3
-pip install scikit-learn==1.3.0
-pip install matplotlib==3.7.1
-pip install seaborn==0.12.2
+python -m pip install --upgrade pip setuptools wheel
+pip install -r requirements.txt
 
-# XAI libraries
-pip install shap==0.42.1
-pip install lime==0.2.0.1
-
-# Additional utilities
-pip install joblib==1.3.1
-pip install plotly==5.15.0
-pip install ipywidgets==8.0.7
-
-# For Colab compatibility (optional)
-pip install google-colab
+# Optional: only if you need Google Colab-specific packages locally
+pip install -r requirements-colab.txt
 ```
 
 #### Step 4: Launch Jupyter
