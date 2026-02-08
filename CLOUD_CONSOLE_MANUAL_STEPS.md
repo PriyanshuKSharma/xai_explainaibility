@@ -73,9 +73,62 @@ pip install pandas numpy scikit-learn matplotlib seaborn shap lime joblib plotly
 
 ### C. Build and push image (console-centric with CloudShell)
 1. Open `AWS CloudShell` from the console.
-2. Clone your repo in CloudShell.
-3. Run Docker build and ECR login/push commands there.
-4. Verify image in `ECR -> Repositories`.
+2. Set environment variables in CloudShell (replace placeholders):
+```bash
+export AWS_REGION="ap-south-1"
+export AWS_ACCOUNT_ID="<your-aws-account-id>"
+export ECR_REPO_NAME="xai"
+export IMAGE_NAME="inference"
+export IMAGE_TAG="v1"
+```
+3. Clone your repo:
+```bash
+git clone <your-repo-url>
+cd xai_explainaibility
+```
+4. Build model artifact first (if not already generated in repo):
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install -r requirements-serving.txt
+python train_model.py
+```
+5. Create ECR repository (if it does not already exist):
+```bash
+aws ecr describe-repositories \
+  --region "${AWS_REGION}" \
+  --repository-names "${ECR_REPO_NAME}/${IMAGE_NAME}" >/dev/null 2>&1 || \
+aws ecr create-repository \
+  --region "${AWS_REGION}" \
+  --repository-name "${ECR_REPO_NAME}/${IMAGE_NAME}"
+```
+6. Authenticate Docker to ECR:
+```bash
+aws ecr get-login-password --region "${AWS_REGION}" | \
+docker login \
+  --username AWS \
+  --password-stdin "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+```
+7. Build and push container image:
+```bash
+IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO_NAME}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+docker build -t "${IMAGE_URI}" .
+docker push "${IMAGE_URI}"
+```
+8. Verify image was pushed:
+```bash
+aws ecr describe-images \
+  --region "${AWS_REGION}" \
+  --repository-name "${ECR_REPO_NAME}/${IMAGE_NAME}" \
+  --query "sort_by(imageDetails,& imagePushedAt)[-1].[imageTags[0],imagePushedAt,imageDigest]" \
+  --output table
+```
+9. Console verification:
+- Go to `ECR -> Repositories -> xai/inference`.
+- Open `Images` tab.
+- Confirm tag (`v1`) and latest push timestamp are visible.
 
 ### D. Train and analyze (Colab-equivalent) in SageMaker Studio
 1. Go to `SageMaker -> Studio` and open/create a Studio domain.
