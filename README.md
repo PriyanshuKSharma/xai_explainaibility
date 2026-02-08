@@ -208,6 +208,22 @@ PY
 
 ### 2. Deploy to Google Vertex AI
 
+What you are doing on GCP (end-to-end):
+
+1. You train a local Random Forest model and save `random_forest_model.pkl`.
+2. You package inference logic in a container (`app.py` + `Dockerfile`) that serves HTTP prediction routes.
+3. `scripts/deploy_vertex.sh` builds and pushes that image to Artifact Registry.
+4. Vertex AI Model Registry stores a model object that points to your container image.
+5. Vertex AI Endpoint hosts the model on managed compute (`n1-standard-2` in script).
+6. Incoming JSON requests are sent to `/predict`, and you get:
+   - `predictions`: encoded class ids (`0`/`1`)
+   - `predicted_labels`: decoded labels (`B`/`M`) when encoder is available
+   - `prediction_probabilities`: class probability scores
+
+Python flow (`deploy_vertex.py`) vs container flow (`scripts/deploy_vertex.sh`):
+- `deploy_vertex.py`: uploads a model artifact to GCS and uses Vertex prebuilt sklearn serving container.
+- `scripts/deploy_vertex.sh`: deploys your own custom container from this repo (recommended for consistent behavior with AWS).
+
 Prerequisites:
 - `gcloud` CLI authenticated (`gcloud auth login`)
 - Project billing enabled
@@ -297,6 +313,20 @@ gcloud ai endpoints predict "${ENDPOINT_ID}" \
 ```
 
 ### 3. Deploy to AWS SageMaker
+
+What you are doing on AWS (end-to-end):
+
+1. You reuse the same inference container used for local testing/GCP.
+2. `scripts/deploy_sagemaker.sh` creates or reuses an ECR repository, then pushes the image.
+3. SageMaker Model is created from that ECR image.
+4. SageMaker Endpoint Config defines instance type/traffic settings.
+5. SageMaker Endpoint is created (or updated) and serves live inference.
+6. Requests go to `/invocations` (SageMaker convention), and health checks use `/ping`.
+
+Expected response meaning:
+- `predictions`: numeric class output from the classifier
+- `predicted_labels`: human-readable class labels
+- `prediction_probabilities`: confidence for each class
 
 Prerequisites:
 - `aws` CLI configured (`aws configure`)
