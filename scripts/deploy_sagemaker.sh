@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Purpose: Build Docker image, push to ECR, and deploy/update SageMaker endpoint.
+# Run after training artifacts are available:
+#   python train_model.py
+# Required env vars:
+#   AWS_REGION, AWS_ACCOUNT_ID, ECR_REPO_NAME, IMAGE_NAME, IMAGE_TAG,
+#   SAGEMAKER_ROLE_ARN, ENDPOINT_NAME
+# Run:
+#   ./scripts/deploy_sagemaker.sh
+
 # Required environment variables:
 # AWS_REGION, AWS_ACCOUNT_ID, ECR_REPO_NAME, IMAGE_NAME, IMAGE_TAG,
 # SAGEMAKER_ROLE_ARN, ENDPOINT_NAME

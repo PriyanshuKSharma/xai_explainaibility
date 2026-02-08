@@ -1,3 +1,11 @@
+# Purpose: Alternate SageMaker SDK deployment example (Python-based).
+# Note: This file is optional and mainly for Studio/Notebook usage.
+# Recommended CLI path for this repo:
+#   ./scripts/deploy_sagemaker.sh
+# If you run this file, ensure:
+#   1) random_forest_model.pkl exists (python train_model.py)
+#   2) bucket/role values below are valid
+
 import boto3
 import sagemaker
 from sagemaker import get_execution_role

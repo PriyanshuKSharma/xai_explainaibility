@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Purpose: Build Docker image and deploy it to Vertex AI endpoint.
+# Run after training artifacts are available:
+#   python train_model.py
+# Required env vars:
+#   PROJECT_ID, REGION, REPO_NAME, IMAGE_NAME, IMAGE_TAG,
+#   MODEL_DISPLAY_NAME, ENDPOINT_DISPLAY_NAME
+# Run:
+#   ./scripts/deploy_vertex.sh
+
 # Required environment variables:
 # PROJECT_ID, REGION, REPO_NAME, IMAGE_NAME, IMAGE_TAG, MODEL_DISPLAY_NAME, ENDPOINT_DISPLAY_NAME
 

@@ -1,3 +1,9 @@
+# Purpose: Production inference image used for local testing, Vertex AI, and SageMaker.
+# Build:
+#   docker build -t xai-inference:local .
+# Run locally:
+#   docker run --rm -p 8080:8080 xai-inference:local
+
 FROM python:3.10-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1

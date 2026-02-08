@@ -1,3 +1,10 @@
+# Purpose: Train Random Forest on `breast-cancer.csv` and save local artifacts.
+# Run first in the workflow:
+#   python train_model.py
+# Output files:
+#   - random_forest_model.pkl
+#   - label_encoder.pkl
+
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder

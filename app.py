@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+# Purpose: Unified inference API used by local Docker, Vertex AI, and SageMaker.
+# Run locally for testing:
+#   uvicorn app:app --host 0.0.0.0 --port 8080
+# Endpoints:
+#   - GET /health (Vertex health check)
+#   - GET /ping (SageMaker health check)
+#   - POST /predict (Vertex predictions)
+#   - POST /invocations (SageMaker predictions)
+
 from pathlib import Path
 from typing import Any
 

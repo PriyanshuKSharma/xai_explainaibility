@@ -1,5 +1,16 @@
 from __future__ import annotations
 
+# Purpose: Python-only Vertex AI deployment flow using Vertex prebuilt sklearn container.
+# Prerequisites:
+#   1) python train_model.py
+#   2) gcloud auth login
+#   3) gcloud auth application-default login
+# Run:
+#   python deploy_vertex.py
+# Optional env overrides:
+#   GCP_PROJECT_ID, GCP_REGION, GCS_BUCKET_NAME, MODEL_FILE,
+#   VERTEX_MODEL_DISPLAY_NAME, VERTEX_ENDPOINT_DISPLAY_NAME
+
 import os
 from datetime import datetime, timezone
 from pathlib import Path
