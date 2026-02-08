@@ -226,8 +226,18 @@ Prerequisites:
 - Project billing enabled
 - Docker installed
 
+One-time Google Cloud auth setup (required for `deploy_vertex.py` and Vertex API calls):
+
 ```bash
-export PROJECT_ID="<your-gcp-project-id>"
+gcloud auth login
+gcloud auth application-default login
+gcloud config set project mqi-ims
+gcloud auth application-default set-quota-project mqi-ims
+gcloud services enable aiplatform.googleapis.com storage.googleapis.com
+```
+
+```bash
+export PROJECT_ID="mqi-ims"
 export REGION="us-central1"
 export REPO_NAME="xai-images"
 export IMAGE_NAME="xai-inference"
