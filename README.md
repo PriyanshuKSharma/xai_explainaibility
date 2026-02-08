@@ -176,6 +176,7 @@ Cloud services are used here to move from notebook-only experimentation to produ
 - **Team access and security**: use cloud IAM controls for controlled access.
 
 For a cloud-only walkthrough, see `CLOUD_DEPLOYMENT.md`.
+For click-by-click console-only steps (build/train/test/analyze), see `CLOUD_CONSOLE_MANUAL_STEPS.md`.
 
 ### What was added
 
