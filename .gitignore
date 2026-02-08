@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 random_forest_model.pkl
 label_encoder.pkl
+trained_model.pkl
+*.pkl
