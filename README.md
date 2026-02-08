@@ -165,6 +165,18 @@ jupyter lab XAI_algo.ipynb
 
 This repository now includes a shared inference container (`app.py`, `Dockerfile`) and cloud scripts for both platforms.
 
+### Purpose of Cloud Deployment
+
+Cloud services are used here to move from notebook-only experimentation to production-style ML serving:
+
+- **Reliable online inference**: host the model behind managed endpoints instead of running notebooks locally.
+- **Scalability**: increase/decrease serving capacity based on request traffic.
+- **Operational visibility**: collect endpoint logs/metrics for debugging and monitoring.
+- **Repeatable deployments**: version images/models and redeploy safely.
+- **Team access and security**: use cloud IAM controls for controlled access.
+
+For a cloud-only walkthrough, see `CLOUD_DEPLOYMENT.md`.
+
 ### What was added
 
 - `app.py`: FastAPI inference app with:
