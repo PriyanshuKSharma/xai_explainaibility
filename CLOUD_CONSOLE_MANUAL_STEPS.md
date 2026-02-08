@@ -83,7 +83,7 @@ export IMAGE_TAG="v1"
 ```
 3. Clone your repo:
 ```bash
-git clone <your-repo-url>
+git clone https://github.com/PriyanshuKSharma/xai_explainaibility.git
 cd xai_explainaibility
 ```
 4. Build model artifact first (if not already generated in repo):
