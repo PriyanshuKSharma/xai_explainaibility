@@ -345,6 +345,7 @@ Prerequisites:
 - `aws` CLI configured (`aws configure`)
 - Docker installed
 - SageMaker execution role ARN available
+- If using AWS CloudShell and you hit disk errors (`No space left on device`), follow `CLOUD_CONSOLE_MANUAL_STEPS.md` CloudShell troubleshooting section.
 
 ```bash
 export AWS_REGION="ap-south-1"

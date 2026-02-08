@@ -130,6 +130,39 @@ aws ecr describe-images \
 - Open `Images` tab.
 - Confirm tag (`v1`) and latest push timestamp are visible.
 
+### CloudShell storage troubleshooting (`No space left on device`)
+If you see errors like:
+- `Building wheel ... failed: [Errno 28] No space left on device`
+- `Failed to build installable wheels`
+
+Use this recovery flow in CloudShell:
+
+```bash
+# Check disk usage
+df -h
+
+# Clean common caches
+rm -rf ~/.cache/pip ~/.cache/pypoetry ~/.npm ~/.cache/yarn
+docker system prune -af || true
+
+# Force pip to avoid persistent cache
+export PIP_NO_CACHE_DIR=1
+export PIP_CACHE_DIR=/tmp/pip-cache
+mkdir -p /tmp/pip-cache
+```
+
+For CloudShell, install only minimum dependencies needed to create model artifacts:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+pip install --no-cache-dir pandas scikit-learn joblib
+python train_model.py
+```
+
+Then continue Docker build/push steps. Avoid running full `pip install -r requirements.txt` in CloudShell.
+
 ### D. Train and analyze (Colab-equivalent) in SageMaker Studio
 1. Go to `SageMaker -> Studio` and open/create a Studio domain.
 2. Launch JupyterLab inside Studio.
