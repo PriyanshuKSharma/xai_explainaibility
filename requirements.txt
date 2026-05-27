@@ -1,21 +1,46 @@
-# Core ML libraries
-pandas==2.2.3
-numpy==1.26.4
-scikit-learn==1.4.2
-matplotlib==3.8.4
-seaborn==0.13.2
+# ─────────────────────────────────────────────
+# XAI Explainability – Enhanced Requirements
+# Install: pip install -r requirements.txt
+# ─────────────────────────────────────────────
 
-# XAI libraries
-shap==0.46.0
-lime==0.2.0.1
+# Core ML
+scikit-learn>=1.3.0
+numpy>=1.24.0
+pandas>=2.0.0
+joblib>=1.3.0
 
-# Additional utilities
-joblib==1.4.2
-plotly==5.24.1
-ipywidgets==8.1.5
+# XAI – Core
+shap>=0.44.0
+lime>=0.2.0.1
 
-# Cloud deployment
-google-cloud-aiplatform==1.74.0
-google-cloud-storage==2.19.0
-boto3==1.35.86
-sagemaker==2.237.3
+# XAI – Extended
+alibi>=0.9.0            # Anchors, Integrated Gradients (optional)
+dice-ml>=0.11           # Counterfactuals via DiCE (optional)
+
+# Gradient Boosting Variants
+xgboost>=2.0.0
+lightgbm>=4.0.0
+
+# Deep Learning (optional – MLP support)
+torch>=2.0.0
+captum>=0.7.0           # Integrated Gradients for PyTorch
+
+# Hyperparameter Optimisation (optional)
+optuna>=3.4.0
+
+# API
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+pydantic>=2.0.0
+
+# Dashboard
+streamlit>=1.35.0
+plotly>=5.20.0
+
+# Visualisation (notebook use)
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
