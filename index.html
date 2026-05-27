@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAI Clinical Explainability Hub</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1218;
+    --bg3: #151b24;
+    --surface: #1a2130;
+    --surface2: #212d3d;
+    --border: #2a3a50;
+    --orange: #ff9900;
+    --orange-dim: #cc7a00;
+    --orange-glow: rgba(255,153,0,0.15);
+    --teal: #00c7b7;
+    --teal-glow: rgba(0, 199, 183, 0.15);
+    --blue: #4da6ff;
+    --blue-glow: rgba(77, 166, 255, 0.15);
+    --green: #39d353;
+    --green-glow: rgba(57, 211, 83, 0.15);
+    --red: #f85149;
+    --red-glow: rgba(248, 81, 73, 0.15);
+    --text: #e2e8f0;
+    --text-muted: #8899aa;
+    --text-dim: #4a6070;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    height: 60px;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--teal);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--teal);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #000;
+    font-weight: 700;
+  }
+
+  .header-search {
+    flex: 1;
+    max-width: 380px;
+    position: relative;
+  }
+  .header-search input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    padding: 7px 14px 7px 36px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .header-search input::placeholder { color: var(--text-dim); }
+  .header-search input:focus {
+    border-color: var(--teal);
+    box-shadow: 0 0 0 3px var(--teal-glow);
+  }
+  .search-icon {
+    position: absolute;
+    left: 11px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 13px;
+  }
+
+  .header-count {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .header-count span { color: var(--teal); }
+
+  /* ─── HERO ─── */
+  .hero {
+    position: relative;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+    overflow: hidden;
+  }
+
+  .hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.15;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black, transparent);
+  }
+
+  .hero-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--teal);
+    background: var(--teal-glow);
+    border: 1px solid rgba(0,199,183,0.3);
+    border-radius: 20px;
+    padding: 4px 14px;
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .hero h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.8rem, 4.5vw, 2.8rem);
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 1rem;
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+  .hero h1 .accent { color: var(--teal); }
+
+  .hero-sub {
+    color: var(--text-muted);
+    font-size: 15px;
+    max-width: 720px;
+    margin: 0 auto 2rem;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+
+  .hero-stats {
+    display: flex;
+    justify-content: center;
+    gap: 2.5rem;
+    animation: fadeUp 0.5s 0.3s ease both;
+    flex-wrap: wrap;
+  }
+  .hero-stat {
+    text-align: center;
+    min-width: 100px;
+  }
+  .hero-stat-num {
+    font-family: var(--mono);
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: var(--teal);
+    display: block;
+    line-height: 1;
+    margin-bottom: 3px;
+  }
+  .hero-stat-label {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  /* ─── CATEGORY FILTERS ─── */
+  .filter-bar {
+    padding: 1.5rem 2rem;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.5s 0.4s ease both;
+  }
+
+  .filter-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .filter-btn:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-glow);
+  }
+  .filter-btn.active {
+    border-color: var(--teal);
+    background: var(--teal);
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* ─── MAIN LAYOUT ─── */
+  .main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 2rem 4rem;
+  }
+
+  /* ─── SECTION ─── */
+  .section {
+    margin-bottom: 3rem;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-icon {
+    font-size: 1.1rem;
+  }
+  .section-title {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .section-count {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ─── NOTES GRID ─── */
+  .notes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  /* ─── NOTE CARD ─── */
+  .note-card {
+    background: var(--bg2);
+    padding: 1.25rem 1.4rem;
+    cursor: pointer;
+    transition: background 0.15s;
+    position: relative;
+    text-decoration: none;
+    display: block;
+    overflow: hidden;
+  }
+  .note-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: transparent;
+    transition: background 0.2s;
+  }
+  .note-card:hover {
+    background: var(--surface);
+  }
+  .note-card:hover::before {
+    background: var(--teal);
+  }
+
+  .note-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .note-title {
+    font-family: var(--sans);
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 0.5rem;
+    line-height: 1.3;
+    transition: color 0.2s;
+  }
+  .note-card:hover .note-title {
+    color: var(--teal);
+  }
+
+  .note-desc {
+    font-size: 12px;
+    color: var(--text-muted);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .note-tags {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .note-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--teal);
+    background: var(--teal-glow);
+    border: 1px solid rgba(0,199,183,0.2);
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .note-tag.blue {
+    color: var(--blue);
+    background: var(--blue-glow);
+    border-color: rgba(77,166,255,0.2);
+  }
+  .note-tag.green {
+    color: var(--green);
+    background: var(--green-glow);
+    border-color: rgba(57,211,83,0.2);
+  }
+  .note-tag.orange {
+    color: var(--orange);
+    background: var(--orange-glow);
+    border-color: rgba(255,153,0,0.2);
+  }
+  .note-tag.red {
+    color: var(--red);
+    background: var(--red-glow);
+    border-color: rgba(248,81,73,0.2);
+  }
+
+  .note-arrow {
+    position: absolute;
+    right: 1.2rem; top: 50%;
+    transform: translateY(-50%) translateX(6px);
+    opacity: 0;
+    color: var(--teal);
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .note-card:hover .note-arrow {
+    opacity: 1;
+    transform: translateY(-50%) translateX(0);
+  }
+
+  /* ─── INTERACTIVE DRAWER MODAL ─── */
+  dialog.drawer {
+    position: fixed;
+    top: 0; right: 0; bottom: 0;
+    width: 650px;
+    max-width: 95%;
+    height: 100vh;
+    border: none;
+    border-left: 1px solid var(--border);
+    background: var(--bg2);
+    color: var(--text);
+    padding: 0;
+    box-shadow: -10px 0 35px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    outline: none;
+    
+    /* Animation & top-layer */
+    opacity: 0;
+    transform: translateX(100%);
+    transition: opacity 0.3s, transform 0.3s, display 0.3s allow-discrete, overlay 0.3s allow-discrete;
+  }
+  
+  dialog.drawer[open] {
+    opacity: 1;
+    transform: translateX(0);
+    
+    @starting-style {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
+  
+  dialog.drawer::backdrop {
+    background-color: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0px);
+    transition: display 0.3s allow-discrete, overlay 0.3s allow-discrete, background-color 0.3s ease, backdrop-filter 0.3s ease;
+  }
+  
+  dialog.drawer[open]::backdrop {
+    background-color: rgba(10, 12, 16, 0.75);
+    backdrop-filter: blur(10px);
+    
+    @starting-style {
+      background-color: rgba(0, 0, 0, 0);
+      backdrop-filter: blur(0px);
+    }
+  }
+
+  .drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg3);
+  }
+
+  .drawer-title-area {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .drawer-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--teal);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .drawer-title {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .drawer-close {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .drawer-close:hover {
+    border-color: var(--teal);
+    color: var(--teal);
+    background: var(--teal-glow);
+  }
+
+  .drawer-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 2rem;
+    line-height: 1.7;
+    font-size: 14.5px;
+  }
+
+  .drawer-footer {
+    padding: 1.25rem 2rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg3);
+    display: flex;
+    gap: 1rem;
+  }
+
+  .drawer-btn {
+    flex: 1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .drawer-btn.primary {
+    background: var(--teal);
+    border: 1px solid var(--teal);
+    color: #000;
+    font-weight: 700;
+  }
+  .drawer-btn.primary:hover {
+    background: #00b3a4;
+    border-color: #00b3a4;
+  }
+
+  .drawer-btn.secondary {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .drawer-btn.secondary:hover {
+    border-color: var(--text-muted);
+    background: var(--surface);
+  }
+
+  /* ─── RENDERED NOTES HTML STYLE ─── */
+  .drawer-content h3 {
+    font-family: var(--mono);
+    color: var(--teal);
+    font-size: 16.5px;
+    margin-bottom: 1rem;
+    border-left: 3px solid var(--teal);
+    padding-left: 0.75rem;
+    letter-spacing: -0.02em;
+  }
+  .drawer-content h4 {
+    font-family: var(--sans);
+    color: #fff;
+    font-size: 14.5px;
+    font-weight: 600;
+    margin: 1.5rem 0 0.5rem;
+  }
+  .drawer-content h5 {
+    font-family: var(--sans);
+    color: var(--blue);
+    font-size: 13.5px;
+    font-weight: 600;
+    margin: 1rem 0 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .drawer-content p {
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+  }
+  .drawer-content ul, .drawer-content ol {
+    margin: 0 0 1.25rem 1.5rem;
+    color: var(--text-muted);
+  }
+  .drawer-content li {
+    margin-bottom: 0.4rem;
+  }
+  .drawer-content strong {
+    color: #fff;
+  }
+  
+  /* Tables inside drawer */
+  .drawer-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 12.5px;
+  }
+  .drawer-content th {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--teal);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    padding: 8px 10px;
+    text-align: left;
+    font-weight: 700;
+  }
+  .drawer-content td {
+    border: 1px solid var(--border);
+    padding: 8px 10px;
+    background: var(--bg3);
+    color: var(--text-muted);
+  }
+  .drawer-content tr.highlight td {
+    background: var(--surface);
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .drawer-content tr.primary-row td {
+    background: var(--teal-glow);
+    border-color: var(--teal);
+    color: #fff;
+    font-weight: 600;
+  }
+  .drawer-content td strong {
+    color: var(--teal);
+  }
+
+  /* SVG styling */
+  .flow-svg {
+    width: 100%;
+    max-height: 420px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+  }
+  .flow-svg text {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    fill: var(--text);
+  }
+  .flow-svg .title {
+    font-size: 12px;
+    font-weight: bold;
+    fill: var(--teal);
+  }
+  .flow-svg rect {
+    transition: all 0.3s;
+  }
+  .flow-svg rect:hover {
+    stroke: var(--teal) !important;
+    filter: drop-shadow(0 0 6px var(--teal-glow)) !important;
+    cursor: pointer;
+  }
+
+  /* Callouts & code blocks */
+  .callout {
+    border-left: 4px solid var(--border);
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout.warning {
+    border-color: var(--orange);
+    background: var(--orange-glow);
+  }
+  .callout.info {
+    border-color: var(--blue);
+    background: var(--blue-glow);
+  }
+  .callout.positive {
+    border-color: var(--green);
+    background: var(--green-glow);
+  }
+  .callout.negative {
+    border-color: var(--red);
+    background: var(--red-glow);
+  }
+  .callout strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .callout.warning strong { color: var(--orange); }
+  .callout.info strong { color: var(--blue); }
+  .callout.positive strong { color: var(--green); }
+  .callout.negative strong { color: var(--red); }
+
+  pre {
+    background: #050608;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  p code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12.5px;
+    color: var(--teal);
+  }
+  
+  .formula {
+    text-align: center;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1rem;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--blue);
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 1rem;
+    margin: 1.5rem 0;
+  }
+
+  .card-inner {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    background: var(--bg3);
+  }
+  .card-inner.border-danger {
+    border-color: rgba(248, 81, 73, 0.4);
+  }
+  .card-inner.border-success {
+    border-color: rgba(57, 211, 83, 0.4);
+  }
+  .quote {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 2px solid var(--text-dim);
+    padding-left: 0.75rem;
+  }
+
+  /* ─── NO RESULTS ─── */
+  .no-results {
+    text-align: center;
+    padding: 4rem 2rem;
+    color: var(--text-muted);
+    display: none;
+  }
+  .no-results-icon { font-size: 2.5rem; margin-bottom: 1rem; }
+  .no-results-text { font-family: var(--mono); font-size: 13px; }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── HIDDEN ─── */
+  .hidden { display: none !important; }
+  .section.hidden { display: none !important; }
+
+  /* ─── FOOTER ─── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2rem;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  footer a { color: var(--teal); text-decoration: none; }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <a class="logo" href="index.html">
+    <div class="logo-icon">🧬</div>
+    ClinicalXAI
+  </a>
+  <div class="header-search">
+    <span class="search-icon">⌕</span>
+    <input type="text" id="searchInput" placeholder="Search experiments, metrics, math..." autocomplete="off">
+  </div>
+  <div class="header-count">
+    <span id="visibleCount">44</span> entries
+  </div>
+</header>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-grid"></div>
+  <div class="hero-badge">✦ explainable ai for cancer diagnosis</div>
+  <h1>Interpret <span class="accent">Black-Box Clinical Models</span><br>With Five XAI Paradigms</h1>
+  <p class="hero-sub">Standardized attributions, high-precision rules, actionable recourses, and regulatory compliance mapping for high-stakes breast cancer diagnostics.</p>
+  <div class="hero-stats">
+    <div class="hero-stat"><span class="hero-stat-num">44</span><span class="hero-stat-label">XAI Notes</span></div>
+    <div class="hero-stat"><span class="hero-stat-num">12</span><span class="hero-stat-label">Categories</span></div>
+    <div class="hero-stat"><span class="hero-stat-num">97.4%</span><span class="hero-stat-label">Accuracy</span></div>
+    <div class="hero-stat"><span class="hero-stat-num">0.995</span><span class="hero-stat-label">ROC-AUC</span></div>
+    <div class="hero-stat"><span class="hero-stat-num">GDPR</span><span class="hero-stat-label">Compliance</span></div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar" id="filterBar">
+  <button class="filter-btn active" data-cat="all">All</button>
+  <button class="filter-btn" data-cat="foundation">📚 Foundation & Concepts</button>
+  <button class="filter-btn" data-cat="data-engineering">🧬 Data & Features</button>
+  <button class="filter-btn" data-cat="models">🤖 Models & Ensemble</button>
+  <button class="filter-btn" data-cat="shap">📊 SHAP Explanations</button>
+  <button class="filter-btn" data-cat="lime">🍋 LIME Surrogate</button>
+  <button class="filter-btn" data-cat="anchors">⚓ Anchor Rules</button>
+  <button class="filter-btn" data-cat="ig">📈 Integrated Gradients</button>
+  <button class="filter-btn" data-cat="counterfactuals">🔄 Counterfactuals</button>
+  <button class="filter-btn" data-cat="hybrid-xai">⚡ Hybrid Ensemble</button>
+  <button class="filter-btn" data-cat="evaluation">📏 Evaluation Metrics</button>
+  <button class="filter-btn" data-cat="clinical">🩺 Clinical Relevance</button>
+  <button class="filter-btn" data-cat="reproducibility">💻 Code & Colab</button>
+</div>
+
+<!-- MAIN -->
+<main class="main" id="mainContent">
+
+<!-- Section: Foundation -->
+<div class="section" data-section="foundation">
+  <div class="section-header">
+    <span class="section-icon">📚</span>
+    <span class="section-title">Foundation & Concepts</span>
+    <span class="section-count">4 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=00_introduction_clinical_trust.md" data-cat="foundation" data-search="introduction clinical trust black box clinician oncology radiology healthcare diagnosis patient">
+      <div class="note-num">00</div>
+      <div class="note-title">Clinical Trust & XAI in Medical Diagnosis</div>
+      <div class="note-desc">The critical role of transparency and trust in ML-driven clinical decision support systems.</div>
+      <div class="note-tags"><span class="note-tag green">Clinical</span><span class="note-tag">Trust</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=00_gdpr_article_22_compliance.md" data-cat="foundation" data-search="gdpr article 22 right to explanation automated decisions transparency legal compliance regulatory">
+      <div class="note-num">00</div>
+      <div class="note-title">GDPR Article 22: Right to Explanation</div>
+      <div class="note-desc">Mapping clinical attributions to automated decision-making transparency mandates under GDPR.</div>
+      <div class="note-tags"><span class="note-tag">GDPR</span><span class="note-tag blue">Regulation</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=00_eu_ai_act_high_risk.md" data-cat="foundation" data-search="eu ai act high-risk high risk diagnostics regulation audit compliance logging security auditability">
+      <div class="note-num">00</div>
+      <div class="note-title">EU AI Act & High-Risk Diagnostics</div>
+      <div class="note-desc">Regulatory analysis of healthcare AI models and documentation, human oversight, and audit trails.</div>
+      <div class="note-tags"><span class="note-tag">AI Act</span><span class="note-tag green">Compliance</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=00_xai_taxonomy.md" data-cat="foundation" data-search="explainable ai taxonomy post-hoc ante-hoc global local model-agnostic model-specific scope">
+      <div class="note-num">00</div>
+      <div class="note-title">Explainable AI Taxonomy</div>
+      <div class="note-desc">Comparing post-hoc vs ante-hoc, global vs local, and model-specific vs model-agnostic explanation scopes.</div>
+      <div class="note-tags"><span class="note-tag">Taxonomy</span><span class="note-tag blue">Concepts</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Data & Features -->
+<div class="section" data-section="data-engineering">
+  <div class="section-header">
+    <span class="section-icon">🧬</span>
+    <span class="section-title">Data & Feature Engineering</span>
+    <span class="section-count">5 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=01_wisconsin_dataset_morphology.md" data-cat="data-engineering" data-search="wisconsin breast cancer dataset morphology fine needle aspirate nuclei statistics features dimensions">
+      <div class="note-num">01</div>
+      <div class="note-title">Wisconsin Dataset Nuclear Morphology</div>
+      <div class="note-desc">Explaining the 10 core morphological cell nuclear features and 30 statistical columns of fine needle aspirates.</div>
+      <div class="note-tags"><span class="note-tag">Dataset</span><span class="note-tag blue">Biology</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=01_data_preprocessing_pipeline.md" data-cat="data-engineering" data-search="data preprocessing pipeline split stratified standardizer z-score scaling scikit-learn standardscaler">
+      <div class="note-num">01</div>
+      <div class="note-title">Data Preprocessing & Scaling Pipeline</div>
+      <div class="note-desc">Formulating data preprocessing steps, stratified split, and robust Z-score standardization.</div>
+      <div class="note-tags"><span class="note-tag">Pipeline</span><span class="note-tag green">ML</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=01_perimeter_area_ratio.md" data-cat="data-engineering" data-search="perimeter area ratio engineered feature formula shape boundary elongation irregularity">
+      <div class="note-num">01</div>
+      <div class="note-title">Perimeter-Area Ratio ($r_{pa}$)</div>
+      <div class="note-desc">Formulating and evaluating the perimeter-to-area ratio feature to capture irregular tumor boundary elongation.</div>
+      <div class="note-tags"><span class="note-tag">Feature</span><span class="note-tag blue">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=01_concavity_points_ratio.md" data-cat="data-engineering" data-search="concavity to points ratio engineered feature formula shape deep indentation cell structure">
+      <div class="note-num">01</div>
+      <div class="note-title">Concavity-to-Points Ratio ($r_{cp}$)</div>
+      <div class="note-desc">Distinguishing deep-indentation aggressive cell structures from many shallow indentations.</div>
+      <div class="note-tags"><span class="note-tag">Feature</span><span class="note-tag green">Clinical</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=01_radius_compactness_growth.md" data-cat="data-engineering" data-search="radius compactness growth worst case deviation tumor heterogeneity cell packing engineered">
+      <div class="note-num">01</div>
+      <div class="note-title">Radius & Compactness Growth</div>
+      <div class="note-desc">Quantifying worst-case tumor heterogeneity and deviation in irregular cell packing.</div>
+      <div class="note-tags"><span class="note-tag">Feature</span><span class="note-tag orange">Biology</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Models & Ensemble -->
+<div class="section" data-section="models">
+  <div class="section-header">
+    <span class="section-icon">🤖</span>
+    <span class="section-title">Models & Ensemble</span>
+    <span class="section-count">4 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=02_multi_model_pipeline.md" data-cat="models" data-search="multi model pipeline lightgbm xgboost random forest logistic regression gradient boosting classifiers ensemble">
+      <div class="note-num">02</div>
+      <div class="note-title">Multi-Model Training Pipeline</div>
+      <div class="note-desc">Constructing an ensemble of Random Forest, XGBoost, LightGBM, Gradient Boosting, and Logistic Regression.</div>
+      <div class="note-tags"><span class="note-tag">Models</span><span class="note-tag blue">Ensemble</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=02_optuna_hyperparameter_optimization.md" data-cat="models" data-search="optuna hyperparameter optimization bayesian search lightgbm parameters trials k-fold cross-validation">
+      <div class="note-num">02</div>
+      <div class="note-title">Bayesian Hyperparameter Tuning</div>
+      <div class="note-desc">Leveraging Optuna to automatically search high-dimensional hyperparameter spaces.</div>
+      <div class="note-tags"><span class="note-tag">Optimization</span><span class="note-tag green">Optuna</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=02_model_performance_comparison.md" data-cat="models" data-search="model performance comparison metrics table accuracy precision recall f1-score roc-auc ensemble">
+      <div class="note-num">02</div>
+      <div class="note-title">Multi-Model Performance Benchmark</div>
+      <div class="note-desc">Tabular analysis of accuracy, precision, recall, F1, and ROC-AUC metrics (featuring Table I).</div>
+      <div class="note-tags"><span class="note-tag">Benchmark</span><span class="note-tag blue">Metrics</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=02_feature_importance_ablation.md" data-cat="models" data-search="feature importance ablation study configuration raw perimeter area concavity points radius compactness growth table">
+      <div class="note-num">02</div>
+      <div class="note-title">Feature Importance Ablation Study</div>
+      <div class="note-desc">Isolating and quantifying the accuracy and AUC gain of our engineered features (featuring Table II).</div>
+      <div class="note-tags"><span class="note-tag">Ablation</span><span class="note-tag orange">Results</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: SHAP Explanations -->
+<div class="section" data-section="shap">
+  <div class="section-header">
+    <span class="section-icon">📊</span>
+    <span class="section-title">SHAP Explanations</span>
+    <span class="section-count">4 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=03_shapley_game_theory.md" data-cat="shap" data-search="shap shapley cooperative game theory mathematical formula fair payout feature attribution">
+      <div class="note-num">03</div>
+      <div class="note-title">Shapley Cooperative Game Theory</div>
+      <div class="note-desc">The mathematical foundation of Shapley values for fair payout distribution.</div>
+      <div class="note-tags"><span class="note-tag">SHAP</span><span class="note-tag blue">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=03_shapley_axioms.md" data-cat="shap" data-search="shapley axioms efficiency symmetry dummy additivity properties explainable ai guarantees">
+      <div class="note-num">03</div>
+      <div class="note-title">Shapley Value Axioms</div>
+      <div class="note-desc">Explaining the core mathematical properties: Efficiency, Symmetry, Dummy, and Additivity.</div>
+      <div class="note-tags"><span class="note-tag">Axioms</span><span class="note-tag green">Theory</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=03_tree_explainer_efficiency.md" data-cat="shap" data-search="treeexplainer tree explainer polynomial complexity algorithm trees decision tree forest lundberg">
+      <div class="note-num">03</div>
+      <div class="note-title">TreeExplainer Complexity & Efficiency</div>
+      <div class="note-desc">Exploring how exact Shapley values are computed in polynomial time for tree structures.</div>
+      <div class="note-tags"><span class="note-tag">Algorithms</span><span class="note-tag blue">Tree</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=03_shap_global_local_analysis.md" data-cat="shap" data-search="shap global local analysis feature importance interaction matrix dependency plot waterfall">
+      <div class="note-num">03</div>
+      <div class="note-title">SHAP Global & Local Analysis</div>
+      <div class="note-desc">Interpreting global feature importance bar charts, local waterfall force plots, and feature interaction values.</div>
+      <div class="note-tags"><span class="note-tag">SHAP</span><span class="note-tag orange">Visuals</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: LIME Surrogate -->
+<div class="section" data-section="lime">
+  <div class="section-header">
+    <span class="section-icon">🍋</span>
+    <span class="section-title">LIME Surrogate</span>
+    <span class="section-count">3 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=04_lime_local_surrogate.md" data-cat="lime" data-search="lime local surrogate objective function mathematical formula proximity kernel regularization ribeiro">
+      <div class="note-num">04</div>
+      <div class="note-title">LIME Local Surrogate Loss</div>
+      <div class="note-desc">Formulating the local surrogate training loss, proximity kernel, and complexity regularization.</div>
+      <div class="note-tags"><span class="note-tag">LIME</span><span class="note-tag blue">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=04_lime_perturbation_neighborhoods.md" data-cat="lime" data-search="perturbation sampling proximity kernel lime exponential distance metric neighborhood weights">
+      <div class="note-num">04</div>
+      <div class="note-title">Perturbation Sampling & Proximity Kernel</div>
+      <div class="note-desc">How LIME generates local perturbations and weights them via the exponential kernel.</div>
+      <div class="note-tags"><span class="note-tag">LIME</span><span class="note-tag green">Sampling</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=04_lime_stability_analysis.md" data-cat="lime" data-search="lime stability variance coefficient variation run consistency evaluation score">
+      <div class="note-num">04</div>
+      <div class="note-title">LIME Stability & Variance</div>
+      <div class="note-desc">Analyzing coefficient of variation of LIME attributions across identical runs.</div>
+      <div class="note-tags"><span class="note-tag">LIME</span><span class="note-tag orange">Stability</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Anchor Rules -->
+<div class="section" data-section="anchors">
+  <div class="section-header">
+    <span class="section-icon">⚓</span>
+    <span class="section-title">Anchor Rules</span>
+    <span class="section-count">3 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=05_anchors_if_then_rules.md" data-cat="anchors" data-search="anchors rule-based if-then rules high precision local bound region explanation ribeiro">
+      <div class="note-num">05</div>
+      <div class="note-title">Anchors: Rule-Based Explanations</div>
+      <div class="note-desc">Rule-based local explanations providing high-precision bounds for individual model predictions.</div>
+      <div class="note-tags"><span class="note-tag">Anchors</span><span class="note-tag blue">Rules</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=05_precision_coverage_tradeoff.md" data-cat="anchors" data-search="precision coverage trade-off anchors optimization beam search rule generation algorithm">
+      <div class="note-num">05</div>
+      <div class="note-title">Precision vs Coverage Trade-off</div>
+      <div class="note-desc">Formulating the optimization trade-off and the beam search algorithm for finding anchor rules.</div>
+      <div class="note-tags"><span class="note-tag">Anchors</span><span class="note-tag green">Optimization</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=05_clinical_anchor_examples.md" data-cat="anchors" data-search="clinical anchor examples malignant benign rule bounds fine needle aspirate callout">
+      <div class="note-num">05</div>
+      <div class="note-title">Representative Anchor Explanations</div>
+      <div class="note-desc">Displaying representative anchor rules generated for malignant and benign diagnoses.</div>
+      <div class="note-tags"><span class="note-tag">Clinical</span><span class="note-tag orange">Anchors</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Integrated Gradients -->
+<div class="section" data-section="ig">
+  <div class="section-header">
+    <span class="section-icon">📈</span>
+    <span class="section-title">Integrated Gradients</span>
+    <span class="section-count">3 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=06_ig_axiomatic_attribution.md" data-cat="ig" data-search="integrated gradients axiomatic attribution sensitivity completeness implementation invariance sundararajan">
+      <div class="note-num">06</div>
+      <div class="note-title">Axiomatic Path Attribution (IG)</div>
+      <div class="note-desc">Formulating the sensitivity, completeness, and implementation invariance of path integration.</div>
+      <div class="note-tags"><span class="note-tag">IG</span><span class="note-tag blue">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=06_finite_difference_approximation.md" data-cat="ig" data-search="finite difference approximation integrated gradients non-differentiable tree models formula sum">
+      <div class="note-num">06</div>
+      <div class="note-title">Finite-Difference Gradient Approximation</div>
+      <div class="note-desc">Approximating gradients for non-differentiable models using central finite differences.</div>
+      <div class="note-tags"><span class="note-tag">IG</span><span class="note-tag green">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=06_neural_net_captum_ig.md" data-cat="ig" data-search="neural network attributions captum pytorch mlp exact gradients deep learning">
+      <div class="note-num">06</div>
+      <div class="note-title">Neural Network Attributions via Captum</div>
+      <div class="note-desc">Computing exact gradients and attributions for PyTorch MLP models using the Captum library.</div>
+      <div class="note-tags"><span class="note-tag">Deep Learning</span><span class="note-tag orange">PyTorch</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Counterfactuals -->
+<div class="section" data-section="counterfactuals">
+  <div class="section-header">
+    <span class="section-icon">🔄</span>
+    <span class="section-title">Counterfactuals</span>
+    <span class="section-count">4 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=07_nearest_unlike_neighbors.md" data-cat="counterfactuals" data-search="nearest unlike neighbors nun distance metric counterfactual fallback euclidean space">
+      <div class="note-num">07</div>
+      <div class="note-title">Nearest Unlike Neighbors (NUN) Fallback</div>
+      <div class="note-desc">Generating fallback counterfactuals by identifying the closest clinical instance of the opposite class.</div>
+      <div class="note-tags"><span class="note-tag">Counterfactuals</span><span class="note-tag blue">NUN</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=07_actionable_clinical_recourse.md" data-cat="counterfactuals" data-search="actionable recourse patient counseling counterfactual features clinic diagnostic reversal">
+      <div class="note-num">07</div>
+      <div class="note-title">Actionable Recourse & Patient Counseling</div>
+      <div class="note-desc">Designing realistic changes in clinical factors (e.g. radius, perimeter) to achieve prognosis reversal.</div>
+      <div class="note-tags"><span class="note-tag">Clinical</span><span class="note-tag green">Counterfactuals</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=07_dice_diverse_counterfactuals.md" data-cat="counterfactuals" data-search="dice diverse counterfactuals multi path dice-ml diversity metric search wachter">
+      <div class="note-num">07</div>
+      <div class="note-title">Diverse Counterfactuals (DiCE)</div>
+      <div class="note-desc">Formulating diversity-based counterfactual search to provide patients with multiple actionable paths.</div>
+      <div class="note-tags"><span class="note-tag">DiCE</span><span class="note-tag blue">Optimization</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=07_sparsity_proximity_metrics.md" data-cat="counterfactuals" data-search="sparsity proximity metrics counterfactual dice benchmark statistics distance">
+      <div class="note-num">07</div>
+      <div class="note-title">Proximity & Sparsity Benchmarks</div>
+      <div class="note-desc">Evaluating counterfactual quality based on distance and the number of changed features.</div>
+      <div class="note-tags"><span class="note-tag">Metrics</span><span class="note-tag orange">Evaluation</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Hybrid Ensemble -->
+<div class="section" data-section="hybrid-xai">
+  <div class="section-header">
+    <span class="section-icon">⚡</span>
+    <span class="section-title">Hybrid Ensemble</span>
+    <span class="section-count">3 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=08_hybrid_confidence_weighting.md" data-cat="hybrid-xai" data-search="hybrid confidence weighting ensemble explanation algorithm normalized weights formula">
+      <div class="note-num">08</div>
+      <div class="note-title">Confidence-Weighted Hybrid Explainer</div>
+      <div class="note-desc">Formulating our ensemble explanation algorithm combining all 5 methods.</div>
+      <div class="note-tags"><span class="note-tag">Hybrid</span><span class="note-tag blue">Algorithms</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=08_unified_importance_report.md" data-cat="hybrid-xai" data-search="unified importance report confidence weights unified report feature ranking pearson">
+      <div class="note-num">08</div>
+      <div class="note-title">Unified Importance Report Generation</div>
+      <div class="note-desc">Generating an aggregated feature importance ranking from confidence-weighted attributions.</div>
+      <div class="note-tags"><span class="note-tag">Reporting</span><span class="note-tag green">Visuals</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=08_shap_lime_correlation_matrix.md" data-cat="hybrid-xai" data-search="attribution agreement shap lime correlation pearson correlation coefficient statistics consensus">
+      <div class="note-num">08</div>
+      <div class="note-title">SHAP vs LIME Attribution Agreement</div>
+      <div class="note-desc">Computing Pearson correlation coefficients to assess the consensus between SHAP and LIME.</div>
+      <div class="note-tags"><span class="note-tag">Agreement</span><span class="note-tag orange">Statistics</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Evaluation Metrics -->
+<div class="section" data-section="evaluation">
+  <div class="section-header">
+    <span class="section-icon">📏</span>
+    <span class="section-title">Evaluation Metrics</span>
+    <span class="section-count">3 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=09_fidelity_score_assessment.md" data-cat="evaluation" data-search="fidelity score assessment local surrogate faithfulness feature removal testing ribeiro">
+      <div class="note-num">09</div>
+      <div class="note-title">Fidelity Score Assessment</div>
+      <div class="note-desc">Evaluating local surrogate faithfulness via iterative feature removal.</div>
+      <div class="note-tags"><span class="note-tag">Fidelity</span><span class="note-tag blue">Evaluation</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=09_stability_score_formula.md" data-cat="evaluation" data-search="stability score formula quantification mathematical metric consistent explanations run variance">
+      <div class="note-num">09</div>
+      <div class="note-title">Stability Score Formulation</div>
+      <div class="note-desc">Quantifying explanation consistency across multiple iterations on identical instances.</div>
+      <div class="note-tags"><span class="note-tag">Stability</span><span class="note-tag green">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=09_completeness_and_sparsity.md" data-cat="evaluation" data-search="completeness sparsity checks evaluation metrics dice error formula wachter dice-ml">
+      <div class="note-num">09</div>
+      <div class="note-title">Completeness & Sparsity Checks</div>
+      <div class="note-desc">Quantifying SHAP completeness error and counterfactual sparsity performance.</div>
+      <div class="note-tags"><span class="note-tag">Metrics</span><span class="note-tag orange">Math</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Clinical Relevance -->
+<div class="section" data-section="clinical">
+  <div class="section-header">
+    <span class="section-icon">🩺</span>
+    <span class="section-title">Clinical Relevance</span>
+    <span class="section-count">4 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=10_oncologist_radiologist_ratings.md" data-cat="clinical" data-search="expert clinical ratings table oncologist radiologist oncologists radiologists pathologists survey score">
+      <div class="note-num">10</div>
+      <div class="note-title">Expert Clinical Ratings (Table IV)</div>
+      <div class="note-desc">Presenting evaluation scores from 12 medical professionals on a 5-point Likert scale (featuring Table IV).</div>
+      <div class="note-tags"><span class="note-tag">Survey</span><span class="note-tag blue">Clinical</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=10_meaningfulness_actionability_trust.md" data-cat="clinical" data-search="meaningfulness actionability trust feedback oncologist oncologist trust validation">
+      <div class="note-num">10</div>
+      <div class="note-title">Clinician Feedback & Trust Metrics</div>
+      <div class="note-desc">Qualitative oncologist feedback on why Anchors and Hybrid models build clinical trust.</div>
+      <div class="note-tags"><span class="note-tag">Feedback</span><span class="note-tag green">Trust</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=10_clinical_workflow_guidelines.md" data-cat="clinical" data-search="clinical deployment guidelines stakeholder targets regulators clinician patient scientist table">
+      <div class="note-num">10</div>
+      <div class="note-title">Clinical Deployment Guidelines</div>
+      <div class="note-desc">Setting stakeholder-specific explainability targets for regulators, clinicians, patients, and scientists.</div>
+      <div class="note-tags"><span class="note-tag">Deployment</span><span class="note-tag blue">Guidelines</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=10_real_world_case_studies.md" data-cat="clinical" data-search="clinical case studies malignant tumor prediction workflow decision audit trail">
+      <div class="note-num">10</div>
+      <div class="note-title">Clinical Case Studies</div>
+      <div class="note-desc">Walkthrough of malignant tumor classification explanations in real-world clinical decision workflows.</div>
+      <div class="note-tags"><span class="note-tag">Clinical</span><span class="note-tag orange">CaseStudy</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Reproducibility -->
+<div class="section" data-section="reproducibility">
+  <div class="section-header">
+    <span class="section-icon">💻</span>
+    <span class="section-title">Code & Colab</span>
+    <span class="section-count">6 entries</span>
+  </div>
+  <div class="notes-grid">
+    <a class="note-card" href="notes.html?file=11_google_colab_quickstart.md" data-cat="reproducibility" data-search="google colab quickstart python script pip dependencies lightgbm xgboost fastapi streamlit run">
+      <div class="note-num">11</div>
+      <div class="note-title">Google Colab Quickstart Script</div>
+      <div class="note-desc">Execution script to install dependencies and run the XAI training pipeline in Colab.</div>
+      <div class="note-tags"><span class="note-tag">Colab</span><span class="note-tag blue">Script</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=11_fastapi_async_serving.md" data-cat="reproducibility" data-search="fastapi async api serving backend endpoint predict compare swagger doc routing serving.txt">
+      <div class="note-num">11</div>
+      <div class="note-title">FastAPI Async API Serving</div>
+      <div class="note-desc">Architectural design of the async endpoints serving predictions and explanations in real-time.</div>
+      <div class="note-tags"><span class="note-tag">FastAPI</span><span class="note-tag green">API</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=11_streamlit_dashboard_architecture.md" data-cat="reproducibility" data-search="streamlit diagnostic dashboard ui dashboard.py tabs interactive charts feature inputs">
+      <div class="note-num">11</div>
+      <div class="note-title">Streamlit Clinical Dashboard UI</div>
+      <div class="note-desc">Code structure and modular tabs of the Streamlit diagnostic web application.</div>
+      <div class="note-tags"><span class="note-tag">Streamlit</span><span class="note-tag blue">Dashboard</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=11_docker_containerization.md" data-cat="reproducibility" data-search="docker multi-environment containerization dockerfile entrypoint serving streamlit fastapi run">
+      <div class="note-num">11</div>
+      <div class="note-title">Docker Multi-Environment Serving</div>
+      <div class="note-desc">Configuring multi-environment builds to run FastAPI serving or Streamlit dashboard seamlessly.</div>
+      <div class="note-tags"><span class="note-tag">Docker</span><span class="note-tag orange">Deploy</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=11_cloud_deployment_guide.md" data-cat="reproducibility" data-search="cloud deployment guide aws gcp sagemaker vertex ai container registry scripts quickstart deploy">
+      <div class="note-num">11a</div>
+      <div class="note-title">Cloud Deployment Guide (AWS + GCP)</div>
+      <div class="note-desc">Automating cloud deployment of the model serving API to AWS SageMaker and Google Vertex AI.</div>
+      <div class="note-tags"><span class="note-tag">Cloud</span><span class="note-tag blue">Deploy</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+    <a class="note-card" href="notes.html?file=11_cloud_console_manual_steps.md" data-cat="reproducibility" data-search="manual cloud console steps vertex sagemaker workbench artifact repository cloudshell space limits troubleshooting">
+      <div class="note-num">11b</div>
+      <div class="note-title">Manual Cloud Console Steps</div>
+      <div class="note-desc">Step-by-step console manual deployment instructions for AWS and Google Cloud environments.</div>
+      <div class="note-tags"><span class="note-tag">AWS</span><span class="note-tag green">GCP</span></div>
+      <div class="note-arrow">→</div>
+    </a>
+  </div>
+</div>
+
+<!-- Section: Dataset Explorer -->
+<section class="section" id="datasetSection" style="margin-top: 4rem; max-width: 1400px; margin-left: auto; margin-right: auto; padding: 0;">
+  <div class="section-header" style="border-bottom: 1px solid var(--border); padding-bottom: 0.75rem; margin-bottom: 1.5rem;">
+    <span class="section-icon" style="font-size: 1.1rem;">📊</span>
+    <span class="section-title" style="font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--teal); text-transform: uppercase; letter-spacing: 0.08em;">Wisconsin Breast Cancer Dataset Explorer</span>
+  </div>
+  
+  <div class="card-inner" style="background: var(--bg2); border: 1px solid var(--border); padding: 2rem; border-radius: 12px; margin-bottom: 2rem;">
+    <p class="hero-sub" style="text-align: left; margin: 0 0 1.5rem 0; font-size: 13.5px; max-width: 100%; color: var(--text-muted);">
+      Interactive patient database compiled from 569 fine needle aspirate biopsy records. Use search filters to isolate classes, or click any row to inspect all 30 Morphological parameters + pre-calculated Engineered Ratios in a unified patient profile.
+    </p>
+    
+    <!-- Grid layout for table + interactive patient card -->
+    <div class="grid-2" style="grid-template-columns: 1.8fr 1.2fr; align-items: start; display: grid; gap: 1.5rem;">
+      
+      <!-- Data Grid column -->
+      <div class="card-inner" style="padding: 1.25rem; background: var(--bg3); display: flex; flex-direction: column; gap: 1rem; overflow: hidden; border: 1px solid var(--border); border-radius: 8px;">
+        <!-- Filters Bar -->
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div class="header-search" style="max-width: 250px; flex: 1; position: relative;">
+            <span class="search-icon" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-dim); font-size: 12px;">⌕</span>
+            <input type="text" id="datasetSearchInput" placeholder="Search by Patient ID..." autocomplete="off" style="width: 100%; padding: 6px 10px 6px 30px; font-size: 12.5px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); outline: none; transition: border-color 0.2s;">
+          </div>
+          
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <label for="datasetDiagnosisFilter" style="font-family: var(--mono); font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Diagnosis:</label>
+            <select id="datasetDiagnosisFilter" style="background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 6px 10px; font-size: 12.5px; outline: none; cursor: pointer;">
+              <option value="all">All Records (569)</option>
+              <option value="M">Malignant (212)</option>
+              <option value="B">Benign (357)</option>
+            </select>
+          </div>
+          
+          <div style="margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--text-muted);" id="datasetPaginationLabel">
+            Showing <span id="datasetRange">1-10</span> of <span id="datasetTotalCount">569</span> records
+          </div>
+        </div>
+        
+        <!-- Interactive Table -->
+        <div style="overflow-x: auto; width: 100%; border: 1px solid var(--border); border-radius: 8px; background: var(--bg2);">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 0;">
+            <thead>
+              <tr style="background: var(--surface); border-bottom: 1px solid var(--border);">
+                <th style="padding: 10px; text-align: left; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Patient ID</th>
+                <th style="padding: 10px; text-align: center; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Diagnosis</th>
+                <th style="padding: 10px; text-align: right; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Radius Mean</th>
+                <th style="padding: 10px; text-align: right; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Texture Mean</th>
+                <th style="padding: 10px; text-align: right; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Area Mean</th>
+                <th style="padding: 10px; text-align: right; font-family: var(--mono); color: var(--teal); font-weight: bold; border-bottom: 1px solid var(--border);">Concavity Mean</th>
+              </tr>
+            </thead>
+            <tbody id="datasetTableBody" style="cursor: pointer;">
+              <!-- Populated dynamically via JS -->
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Pagination controls -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 0.5rem;">
+          <button id="datasetPrevBtn" class="filter-btn" style="padding: 6px 14px; border-radius: 20px;">◀ Previous</button>
+          <div style="font-family: var(--mono); font-size: 12px; color: var(--text-muted);">
+            Page <span id="datasetCurrentPage">1</span> of <span id="datasetTotalPages">57</span>
+          </div>
+          <button id="datasetNextBtn" class="filter-btn" style="padding: 6px 14px; border-radius: 20px;">Next ▶</button>
+        </div>
+      </div>
+      
+      <!-- Diagnostic Preview column (Interactive Patient Profile) -->
+      <div class="card-inner" style="padding: 1.5rem; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; min-height: 400px; display: flex; flex-direction: column; gap: 1.25rem;" id="patientProfileCard">
+        <div style="text-align: center; margin: auto; padding: 2rem; color: var(--text-dim);" id="noPatientSelected">
+          <div style="font-size: 3rem; margin-bottom: 1rem;">🩺</div>
+          <p style="font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; line-height: 1.5;">Select a patient row in the grid to run interactive explainability profiling</p>
+        </div>
+        
+        <!-- Active Patient Content (starts hidden) -->
+        <div id="patientSelectedContent" class="hidden" style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 0.75rem;">
+            <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+              <span style="font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em;">Active Subject</span>
+              <span style="font-family: var(--mono); font-size: 16px; font-weight: bold; color: #fff;" id="profilePatientId">842302</span>
+            </div>
+            <span id="profileDiagnosisBadge" class="note-tag red" style="font-size: 11px; padding: 4px 10px; border-radius: 6px; font-weight: bold;">Malignant</span>
+          </div>
+          
+          <!-- SHAP Attribution gauge -->
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; text-align: center;">
+            <span style="font-family: var(--mono); font-size: 9px; color: var(--text-muted); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Diagnostic Risk Score (SHAP Consensus)</span>
+            <div style="font-family: var(--mono); font-size: 26px; font-weight: 700; color: var(--red);" id="profileRiskScore">98.4%</div>
+            <div style="width: 100%; height: 6px; background: var(--bg); border-radius: 3px; overflow: hidden; margin-top: 0.6rem; border: 1px solid var(--border);">
+              <div id="profileRiskBar" style="width: 98.4%; height: 100%; background: var(--red); transition: width 0.5s ease-out, background-color 0.5s;"></div>
+            </div>
+          </div>
+          
+          <!-- Numerical morphs -->
+          <div>
+            <span style="font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Morphological Parameters</span>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 12.5px;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Radius (mean):</span>
+                <span style="font-family: var(--mono); color: #fff; font-weight: bold;" id="valRadius">17.99</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Texture (mean):</span>
+                <span style="font-family: var(--mono); color: #fff; font-weight: bold;" id="valTexture">10.38</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Perimeter (mean):</span>
+                <span style="font-family: var(--mono); color: #fff; font-weight: bold;" id="valPerimeter">122.8</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Area (mean):</span>
+                <span style="font-family: var(--mono); color: #fff; font-weight: bold;" id="valArea">1001</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Concave Points (worst):</span>
+                <span style="font-family: var(--mono); color: #fff; font-weight: bold;" id="valPoints">0.2654</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Calculated engineered boundaries -->
+          <div>
+            <span style="font-family: var(--mono); font-size: 9px; color: var(--text-dim); text-transform: uppercase; display: block; margin-bottom: 0.5rem; letter-spacing: 0.05em;">Calculated Engineered Features</span>
+            <div style="display: flex; flex-direction: column; gap: 0.5rem; font-size: 12.5px;">
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Perimeter-Area Ratio ($r_{pa}$):</span>
+                <span style="font-family: var(--mono); color: var(--teal); font-weight: bold;" id="valEngRatio">0.1228</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--border); padding-bottom: 3px;">
+                <span style="color: var(--text-muted);">Radius Growth ($\Delta r$):</span>
+                <span style="font-family: var(--mono); color: var(--teal); font-weight: bold;" id="valEngGrowth">7.39</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Action buttons -->
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            <button id="profileExplainerBtn" class="drawer-btn primary" style="width: 100%; border-radius: 6px; padding: 8px; font-weight: bold; border: none;">Run Multi-Method Explainer</button>
+          </div>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- Interactive Slide-Over Drawer Modal -->
+<dialog class="drawer" id="noteDrawer" closedby="any" aria-labelledby="drawerTitle">
+  <div class="drawer-header">
+    <div class="drawer-title-area">
+      <div class="drawer-num" id="drawerNum">00</div>
+      <div class="drawer-title" id="drawerTitle">Note Details</div>
+    </div>
+    <button class="drawer-close" id="drawerClose" aria-label="Close details">✕</button>
+  </div>
+  <div class="drawer-content" id="drawerContent">
+    <!-- Rich note HTML is dynamically rendered here -->
+  </div>
+  <div class="drawer-footer">
+    <a href="#" class="drawer-btn primary" id="drawerTabLink" target="_blank">Open in New Tab</a>
+    <button class="drawer-btn secondary" id="drawerCopyBtn">Copy Code / Formulas</button>
+  </div>
+</dialog>
+
+<!-- No results placeholder -->
+<div class="no-results" id="noResults">
+  <div class="no-results-icon">🔍</div>
+  <div class="no-results-text">No matches found. Try searching for different terms (e.g. SHAP, LIME, Optuna, or Table).</div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  Developed for School of Engineering, Ajeenkya D Y Patil University, Pune, India &copy; 2026. <br>
+  Based on XAI Research Paper by Priyanshu Kumar Sharma.
+</footer>
+
+<!-- Shared notes data database and script -->
+<script src="dataset-data.js"></script>
+<script src="notes-data.js"></script>
+<script>
+  // UI Interactive Elements
+  const searchInput = document.getElementById('searchInput');
+  const visibleCount = document.getElementById('visibleCount');
+  const filterBar = document.getElementById('filterBar');
+  const mainContent = document.getElementById('mainContent');
+  const noResults = document.getElementById('noResults');
+  
+  // Note Cards
+  const cards = document.querySelectorAll('.note-card');
+  const sections = document.querySelectorAll('.section');
+  
+  // Dynamic Note Count Initialization
+  const updateCounts = () => {
+    let totalVisible = 0;
+    
+    sections.forEach(section => {
+      const secCards = section.querySelectorAll('.note-card:not(.hidden)');
+      const countSpan = section.querySelector('.section-count');
+      
+      if (secCards.length === 0) {
+        section.classList.add('hidden');
+      } else {
+        section.classList.remove('hidden');
+        totalVisible += secCards.length;
+        if (countSpan) {
+          countSpan.textContent = `${secCards.length} ${secCards.length === 1 ? 'entry' : 'entries'}`;
+        }
+      }
+    });
+    
+    visibleCount.textContent = totalVisible;
+    if (totalVisible === 0) {
+      noResults.style.display = 'block';
+    } else {
+      noResults.style.display = 'none';
+    }
+  };
+
+  // 1. Search Functionality
+  searchInput.addEventListener('input', (e) => {
+    const val = e.target.value.toLowerCase().trim();
+    const activeBtn = filterBar.querySelector('.filter-btn.active');
+    const activeCat = activeBtn ? activeBtn.getAttribute('data-cat') : 'all';
+    
+    cards.forEach(card => {
+      const searchTerms = card.getAttribute('data-search').toLowerCase();
+      const cat = card.getAttribute('data-cat');
+      const matchesSearch = val === '' || searchTerms.includes(val);
+      const matchesCat = activeCat === 'all' || cat === activeCat;
+      
+      if (matchesSearch && matchesCat) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+    
+    updateCounts();
+  });
+
+  // 2. Category Filter Toggling
+  filterBar.addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-btn');
+    if (!btn) return;
+    
+    filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    const cat = btn.getAttribute('data-cat');
+    const searchVal = searchInput.value.toLowerCase().trim();
+    
+    cards.forEach(card => {
+      const cardCat = card.getAttribute('data-cat');
+      const searchTerms = card.getAttribute('data-search').toLowerCase();
+      const matchesCat = cat === 'all' || cardCat === cat;
+      const matchesSearch = searchVal === '' || searchTerms.includes(searchVal);
+      
+      if (matchesCat && matchesSearch) {
+        card.classList.remove('hidden');
+      } else {
+        card.classList.add('hidden');
+      }
+    });
+    
+    updateCounts();
+  });
+
+  // 3. Interactive Modal Slide-Over Drawer
+  const drawer = document.getElementById('noteDrawer');
+  const drawerClose = document.getElementById('drawerClose');
+  const drawerNum = document.getElementById('drawerNum');
+  const drawerTitle = document.getElementById('drawerTitle');
+  const drawerContent = document.getElementById('drawerContent');
+  const drawerTabLink = document.getElementById('drawerTabLink');
+  const drawerCopyBtn = document.getElementById('drawerCopyBtn');
+
+  // SVG Flowchart render templates
+  const svgEvalFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4da6ff" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#4da6ff" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      
+      <!-- Flow header -->
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Comprehensive Five-Method XAI Evaluation Framework</text>
+      
+      <!-- Input block -->
+      <rect x="235" y="45" width="130" height="36" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="1.5"/>
+      <text x="300" y="67" text-anchor="middle" font-weight="bold">All Five XAI Methods</text>
+      
+      <!-- First level markers -->
+      <path d="M 235 63 L 95 63 L 95 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 81 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 365 63 L 505 63 L 505 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- First level metrics -->
+      <rect x="30" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="95" y="132" text-anchor="middle">Fidelity Assessment</text>
+      
+      <rect x="235" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="300" y="132" text-anchor="middle">Stability Analysis</text>
+      
+      <rect x="440" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="505" y="132" text-anchor="middle">Computational Efficiency</text>
+      
+      <!-- Second level connectors -->
+      <path d="M 95 146 L 95 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 146 L 300 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 146 L 505 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Second level testing -->
+      <rect x="30" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="95" y="197" text-anchor="middle">Feature Removal Testing</text>
+      
+      <rect x="235" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="197" text-anchor="middle">Multi-run Consistency</text>
+      
+      <rect x="440" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="505" y="197" text-anchor="middle">Timing Analysis</text>
+      
+      <!-- Third level connectors -->
+      <path d="M 95 211 L 95 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 211 L 300 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 211 L 505 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      
+      <!-- Third level clinical dimensions -->
+      <rect x="30" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="95" y="262" text-anchor="middle">Clinical Relevance</text>
+      
+      <rect x="235" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="262" text-anchor="middle">Comprehensibility</text>
+      
+      <rect x="440" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="505" y="262" text-anchor="middle">Trust Enhancement</text>
+      
+      <!-- Final results block connectors -->
+      <path d="M 95 276 L 95 315 L 235 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 300 276 L 300 325" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 505 276 L 505 315 L 365 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      
+      <!-- Results output block -->
+      <rect x="235" y="325" width="130" height="38" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="348" text-anchor="middle" font-weight="bold" fill="#00c7b7">Evaluation Results</text>
+    </svg>
+  `;
+
+  const svgHybridFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradPurp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#bf5af2" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#bf5af2" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradTeal2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      
+      <!-- Flow header -->
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Novel Five-Method Hybrid XAI Ensemble Framework</text>
+      
+      <!-- Input block -->
+      <rect x="220" y="45" width="160" height="34" rx="6" fill="url(#gradPurp)" stroke="#bf5af2" stroke-width="1.5"/>
+      <text x="300" y="66" text-anchor="middle" font-weight="bold">Test Instance + Base Model</text>
+      
+      <!-- Connectors to explainers -->
+      <path d="M 220 62 L 60 62 L 60 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 260 79 L 180 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 79 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 340 79 L 420 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 380 62 L 540 62 L 540 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      
+      <!-- Five explainers -->
+      <rect x="15" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="60" y="131" text-anchor="middle">SHAP Value</text>
+      
+      <rect x="135" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="180" y="131" text-anchor="middle">LIME Local</text>
+      
+      <rect x="255" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="300" y="131" text-anchor="middle">Anchor Rules</text>
+      
+      <rect x="375" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="420" y="131" text-anchor="middle">Int. Gradients</text>
+      
+      <rect x="495" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="540" y="131" text-anchor="middle">Counterfactuals</text>
+      
+      <!-- Explainer output to weighting -->
+      <path d="M 60 144 L 60 170 L 210 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 180 144 L 180 170 L 240 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 144 L 300 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 420 144 L 420 170 L 360 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 540 144 L 540 170 L 390 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      
+      <!-- Weighting block -->
+      <rect x="180" y="192" width="240" height="36" rx="6" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="214" text-anchor="middle">Confidence Weighting & Agreement Score</text>
+      
+      <!-- Linear aggregation -->
+      <path d="M 300 228 L 300 252" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="252" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1"/>
+      <text x="300" y="272" text-anchor="middle">Weighted Attributions Union</text>
+      
+      <!-- Feature ranking -->
+      <path d="M 300 284 L 300 308" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="308" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="328" text-anchor="middle">Joint Importance Ranking</text>
+      
+      <!-- Report output -->
+      <path d="M 300 340 L 300 365" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal2)"/>
+      <rect x="190" y="365" width="220" height="38" rx="6" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="388" text-anchor="middle" font-weight="bold" fill="#00c7b7">Unified Hybrid Explanation</text>
+    </svg>
+  `;
+
+  // 4. Open Note in Slide-Over Drawer
+  const openNoteDrawer = (file) => {
+    if (!notesData[file]) {
+      console.error(`Note details for ${file} not found in database.`);
+      return;
+    }
+    
+    const note = notesData[file];
+    
+    // Set text contents
+    drawerNum.textContent = note.id;
+    drawerTitle.textContent = note.title;
+    
+    // Render content HTML
+    let renderedContent = note.content;
+    
+    // Check if we need to insert inline interactive SVG flowcharts
+    if (file === '09_fidelity_score_assessment.md') {
+      renderedContent += svgEvalFramework;
+    } else if (file === '08_hybrid_confidence_weighting.md') {
+      renderedContent += svgHybridFramework;
+    }
+    
+    drawerContent.innerHTML = renderedContent;
+    
+    // Update link & action buttons
+    drawerTabLink.setAttribute('href', `notes.html?file=${file}`);
+    
+    // Setup code copy utility
+    drawerCopyBtn.onclick = () => {
+      // Find code blocks or formulas
+      const codes = drawerContent.querySelectorAll('code, .formula');
+      let copyText = '';
+      
+      if (codes.length > 0) {
+        codes.forEach(el => {
+          copyText += el.textContent + '\n\n';
+        });
+      } else {
+        copyText = drawerContent.textContent;
+      }
+      
+      navigator.clipboard.writeText(copyText).then(() => {
+        drawerCopyBtn.textContent = '✓ Copied!';
+        setTimeout(() => {
+          drawerCopyBtn.textContent = 'Copy Code / Formulas';
+        }, 1500);
+      });
+    };
+    
+    // Open modal via HTML5 <dialog> API
+    drawer.showModal();
+  };
+
+  // Close Drawer Modal
+  drawerClose.addEventListener('click', () => {
+    drawer.close();
+  });
+
+  // Attach dynamic listener to all note cards
+  cards.forEach(card => {
+    card.addEventListener('click', (e) => {
+      // Prevent opening links directly on normal click - handle via drawer
+      e.preventDefault();
+      const href = card.getAttribute('href');
+      const file = href.split('file=')[1];
+      openNoteDrawer(file);
+    });
+  });
+
+  // 5. Browser Fallback click handler for Light Dismiss on Dialog Backdrop
+  if (!('closedBy' in HTMLDialogElement.prototype)) {
+    drawer.addEventListener('click', (event) => {
+      if (event.target !== drawer) return;
+      
+      const rect = drawer.getBoundingClientRect();
+      const isInside = (
+        rect.top <= event.clientY &&
+        event.clientY <= rect.top + rect.height &&
+        rect.left <= event.clientX &&
+        event.clientX <= rect.left + rect.width
+      );
+      
+      if (!isInside) {
+        drawer.close();
+      }
+    });
+  }
+
+  // --- INTERACTIVE DATASET BROWSER CONTROLLER ---
+  let datasetFiltered = [...breastCancerDataset];
+  let datasetPage = 1;
+  const datasetLimit = 10;
+  
+  const datasetTableBody = document.getElementById('datasetTableBody');
+  const datasetSearchInput = document.getElementById('datasetSearchInput');
+  const datasetDiagnosisFilter = document.getElementById('datasetDiagnosisFilter');
+  const datasetRange = document.getElementById('datasetRange');
+  const datasetTotalCount = document.getElementById('datasetTotalCount');
+  const datasetCurrentPage = document.getElementById('datasetCurrentPage');
+  const datasetTotalPages = document.getElementById('datasetTotalPages');
+  const datasetPrevBtn = document.getElementById('datasetPrevBtn');
+  const datasetNextBtn = document.getElementById('datasetNextBtn');
+  
+  // Patient Profile Details
+  const noPatientSelected = document.getElementById('noPatientSelected');
+  const patientSelectedContent = document.getElementById('patientSelectedContent');
+  const profilePatientId = document.getElementById('profilePatientId');
+  const profileDiagnosisBadge = document.getElementById('profileDiagnosisBadge');
+  const profileRiskScore = document.getElementById('profileRiskScore');
+  const profileRiskBar = document.getElementById('profileRiskBar');
+  const valRadius = document.getElementById('valRadius');
+  const valTexture = document.getElementById('valTexture');
+  const valPerimeter = document.getElementById('valPerimeter');
+  const valArea = document.getElementById('valArea');
+  const valPoints = document.getElementById('valPoints');
+  const valEngRatio = document.getElementById('valEngRatio');
+  const valEngGrowth = document.getElementById('valEngGrowth');
+  const profileExplainerBtn = document.getElementById('profileExplainerBtn');
+  
+  let selectedPatientRecord = null;
+  
+  const renderDatasetTable = () => {
+    datasetTableBody.innerHTML = '';
+    
+    const startIdx = (datasetPage - 1) * datasetLimit;
+    const endIdx = Math.min(startIdx + datasetLimit, datasetFiltered.length);
+    const totalPages = Math.max(1, Math.ceil(datasetFiltered.length / datasetLimit));
+    
+    datasetRange.textContent = datasetFiltered.length > 0 ? `${startIdx + 1}-${endIdx}` : '0-0';
+    datasetTotalCount.textContent = datasetFiltered.length;
+    datasetCurrentPage.textContent = datasetPage;
+    datasetTotalPages.textContent = totalPages;
+    
+    datasetPrevBtn.disabled = datasetPage === 1;
+    datasetNextBtn.disabled = datasetPage === totalPages;
+    
+    if (datasetFiltered.length === 0) {
+      datasetTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" style="padding: 2rem; text-align: center; color: var(--text-dim); font-family: var(--mono); text-transform: uppercase;">
+            No patient records match filters
+          </td>
+        </tr>
+      `;
+      return;
+    }
+    
+    for (let i = startIdx; i < endIdx; i++) {
+      const row = datasetFiltered[i];
+      const isMalignant = row.diagnosis === 'M';
+      
+      const tr = document.createElement('tr');
+      tr.style.borderBottom = '1px solid var(--border)';
+      tr.style.transition = 'background 0.15s';
+      tr.style.background = (selectedPatientRecord && selectedPatientRecord.id === row.id) ? 'var(--surface)' : 'transparent';
+      
+      // Hover background
+      tr.onmouseenter = () => {
+        if (!selectedPatientRecord || selectedPatientRecord.id !== row.id) {
+          tr.style.background = 'rgba(26, 33, 48, 0.5)';
+        }
+      };
+      tr.onmouseleave = () => {
+        if (!selectedPatientRecord || selectedPatientRecord.id !== row.id) {
+          tr.style.background = 'transparent';
+        }
+      };
+      
+      tr.onclick = () => {
+        selectPatient(row);
+        renderDatasetTable(); // Re-render for selection background highlight
+      };
+      
+      tr.innerHTML = `
+        <td style="padding: 10px; font-family: var(--mono); color: #fff; font-weight: 500; border-bottom: 1px solid var(--border);">#${row.id}</td>
+        <td style="padding: 10px; text-align: center; border-bottom: 1px solid var(--border);">
+          <span class="note-tag ${isMalignant ? 'red' : 'green'}" style="font-size: 9px; padding: 2px 6px; border-radius: 4px; font-weight: bold; border-width: 1px;">
+            ${isMalignant ? 'MALIGNANT' : 'BENIGN'}
+          </span>
+        </td>
+        <td style="padding: 10px; text-align: right; font-family: var(--mono); border-bottom: 1px solid var(--border);">${parseFloat(row.radius_mean).toFixed(2)}</td>
+        <td style="padding: 10px; text-align: right; font-family: var(--mono); border-bottom: 1px solid var(--border);">${parseFloat(row.texture_mean).toFixed(2)}</td>
+        <td style="padding: 10px; text-align: right; font-family: var(--mono); border-bottom: 1px solid var(--border);">${parseFloat(row.area_mean).toFixed(0)}</td>
+        <td style="padding: 10px; text-align: right; font-family: var(--mono); border-bottom: 1px solid var(--border);">${parseFloat(row.concavity_mean).toFixed(4)}</td>
+      `;
+      
+      datasetTableBody.appendChild(tr);
+    }
+  };
+  
+  const selectPatient = (patient) => {
+    selectedPatientRecord = patient;
+    noPatientSelected.classList.add('hidden');
+    patientSelectedContent.classList.remove('hidden');
+    
+    // Populate profile elements
+    profilePatientId.textContent = `#${patient.id}`;
+    
+    const isM = patient.diagnosis === 'M';
+    profileDiagnosisBadge.className = `note-tag ${isM ? 'red' : 'green'}`;
+    profileDiagnosisBadge.textContent = isM ? 'MALIGNANT' : 'BENIGN';
+    
+    // Calculate engineered values on the fly
+    const radMean = parseFloat(patient.radius_mean);
+    const perMean = parseFloat(patient.perimeter_mean);
+    const areaMean = parseFloat(patient.area_mean);
+    const radWorst = parseFloat(patient.radius_worst);
+    
+    const r_pa = (perMean / (areaMean + 1e-8)).toFixed(4);
+    const delta_r = (radWorst - radMean).toFixed(2);
+    
+    // Mock risk scores matching SHAP behavior
+    let riskScore = 0;
+    if (isM) {
+      // Malignant high scores
+      riskScore = 90.0 + (radMean % 9.5);
+    } else {
+      // Benign low scores
+      riskScore = 2.0 + (radMean % 7.8);
+    }
+    riskScore = parseFloat(Math.min(99.9, Math.max(0.1, riskScore)).toFixed(1));
+    
+    profileRiskScore.textContent = `${riskScore}%`;
+    profileRiskBar.style.width = `${riskScore}%`;
+    profileRiskBar.style.backgroundColor = isM ? 'var(--red)' : 'var(--green)';
+    profileRiskScore.style.color = isM ? 'var(--red)' : 'var(--green)';
+    
+    // Set numeric morphs
+    valRadius.textContent = radMean.toFixed(2);
+    valTexture.textContent = parseFloat(patient.texture_mean).toFixed(2);
+    valPerimeter.textContent = perMean.toFixed(1);
+    valArea.textContent = areaMean.toFixed(0);
+    valPoints.textContent = parseFloat(patient.concave_points_worst).toFixed(4);
+    valEngRatio.textContent = r_pa;
+    valEngGrowth.textContent = delta_r;
+    
+    // Explainer button links directly to the Hybrid Ensemble note drawer!
+    profileExplainerBtn.onclick = () => {
+      openNoteDrawer('08_hybrid_confidence_weighting.md');
+    };
+  };
+  
+  // Search & Filter Events
+  const filterDataset = () => {
+    const searchVal = datasetSearchInput.value.toLowerCase().trim();
+    const diagFilter = datasetDiagnosisFilter.value;
+    
+    datasetFiltered = breastCancerDataset.filter(row => {
+      const matchesSearch = searchVal === '' || row.id.includes(searchVal);
+      const matchesDiag = diagFilter === 'all' || row.diagnosis === diagFilter;
+      return matchesSearch && matchesDiag;
+    });
+    
+    datasetPage = 1;
+    renderDatasetTable();
+  };
+  
+  datasetSearchInput.addEventListener('input', filterDataset);
+  datasetDiagnosisFilter.addEventListener('change', filterDataset);
+  
+  datasetPrevBtn.addEventListener('click', () => {
+    if (datasetPage > 1) {
+      datasetPage--;
+      renderDatasetTable();
+    }
+  });
+  
+  datasetNextBtn.addEventListener('click', () => {
+    const totalPages = Math.ceil(datasetFiltered.length / datasetLimit);
+    if (datasetPage < totalPages) {
+      datasetPage++;
+      renderDatasetTable();
+    }
+  });
+
+  // Handle direct query parameter opening e.g. index.html?file=...
+  window.addEventListener('DOMContentLoaded', () => {
+    const params = new URLSearchParams(window.location.search);
+    const fileParam = params.get('file');
+    if (fileParam && notesData[fileParam]) {
+      // Open immediately
+      setTimeout(() => openNoteDrawer(fileParam), 300);
+    }
+    
+    // Initial note count update
+    updateCounts();
+    
+    // Render and select first patient row by default inside interactive dataset explorer
+    if (breastCancerDataset && breastCancerDataset.length > 0) {
+      renderDatasetTable();
+      selectPatient(breastCancerDataset[0]);
+    }
+  });
+</script>
+</body>
+</html>
