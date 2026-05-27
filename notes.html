@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XAI Note Viewer</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1218;
+    --bg3: #151b24;
+    --surface: #1a2130;
+    --surface2: #212d3d;
+    --border: #2a3a50;
+    --orange: #ff9900;
+    --orange-dim: #cc7a00;
+    --orange-glow: rgba(255,153,0,0.15);
+    --teal: #00c7b7;
+    --teal-glow: rgba(0, 199, 183, 0.15);
+    --blue: #4da6ff;
+    --blue-glow: rgba(77, 166, 255, 0.15);
+    --green: #39d353;
+    --green-glow: rgba(57, 211, 83, 0.15);
+    --red: #f85149;
+    --red-glow: rgba(248, 81, 73, 0.15);
+    --text: #e2e8f0;
+    --text-muted: #8899aa;
+    --text-dim: #4a6070;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15.5px;
+    line-height: 1.7;
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── CONTAINER ─── */
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3rem;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── NAVIGATION ─── */
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--teal);
+    font-family: var(--mono);
+    font-size: 12px;
+    text-decoration: none;
+    margin-bottom: 2rem;
+    transition: color 0.2s, transform 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .back-btn:hover {
+    color: #00b3a4;
+    transform: translateX(-4px);
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .category-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--teal);
+    background: var(--teal-glow);
+    border: 1px solid rgba(0,199,183,0.3);
+    padding: 4px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .note-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.05em;
+  }
+
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+  }
+
+  /* ─── CONTENT STYLE ─── */
+  .content h3 {
+    font-family: var(--mono);
+    color: var(--teal);
+    font-size: 18px;
+    margin: 2rem 0 1rem;
+    border-left: 3px solid var(--teal);
+    padding-left: 0.75rem;
+    letter-spacing: -0.02em;
+  }
+  .content h4 {
+    font-family: var(--sans);
+    color: #fff;
+    font-size: 15.5px;
+    font-weight: 600;
+    margin: 1.75rem 0 0.5rem;
+  }
+  .content h5 {
+    font-family: var(--sans);
+    color: var(--blue);
+    font-size: 14px;
+    font-weight: 600;
+    margin: 1.25rem 0 0.25rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .content p {
+    color: var(--text-muted);
+    margin-bottom: 1.25rem;
+  }
+  .content ul, .content ol {
+    margin: 0 0 1.5rem 1.5rem;
+    color: var(--text-muted);
+  }
+  .content li {
+    margin-bottom: 0.5rem;
+  }
+  .content strong {
+    color: #fff;
+  }
+
+  /* Tables */
+  .content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2rem 0;
+    font-size: 13px;
+  }
+  .content th {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--teal);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+  }
+  .content td {
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    background: var(--bg3);
+    color: var(--text-muted);
+  }
+  .content tr.highlight td {
+    background: var(--surface);
+    color: var(--teal);
+    font-weight: 600;
+  }
+  .content tr.primary-row td {
+    background: var(--teal-glow);
+    border-color: var(--teal);
+    color: #fff;
+    font-weight: 600;
+  }
+  .content td strong {
+    color: var(--teal);
+  }
+
+  /* Callouts & code blocks */
+  .callout {
+    border-left: 4px solid var(--border);
+    padding: 1.25rem 1.5rem;
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    margin: 2rem 0;
+  }
+  .callout.warning {
+    border-color: var(--orange);
+    background: var(--orange-glow);
+  }
+  .callout.info {
+    border-color: var(--blue);
+    background: var(--blue-glow);
+  }
+  .callout.positive {
+    border-color: var(--green);
+    background: var(--green-glow);
+  }
+  .callout.negative {
+    border-color: var(--red);
+    background: var(--red-glow);
+  }
+  .callout strong {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-family: var(--sans);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .callout.warning strong { color: var(--orange); }
+  .callout.info strong { color: var(--blue); }
+  .callout.positive strong { color: var(--green); }
+  .callout.negative strong { color: var(--red); }
+
+  pre {
+    background: #050608;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 2rem 0;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  p code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 13px;
+    color: var(--teal);
+  }
+  
+  .formula {
+    text-align: center;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--blue);
+    margin: 2rem 0;
+    overflow-x: auto;
+  }
+
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    margin: 2rem 0;
+  }
+
+  .card-inner {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: var(--bg3);
+  }
+  .card-inner.border-danger {
+    border-color: rgba(248, 81, 73, 0.4);
+  }
+  .card-inner.border-success {
+    border-color: rgba(57, 211, 83, 0.4);
+  }
+  .quote {
+    font-style: italic;
+    color: var(--text-muted);
+    border-left: 2px solid var(--text-dim);
+    padding-left: 0.75rem;
+  }
+
+  .flow-svg {
+    width: 100%;
+    max-height: 420px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    box-shadow: inset 0 0 20px rgba(0,0,0,0.3);
+  }
+  .flow-svg text {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    fill: var(--text);
+  }
+  .flow-svg .title {
+    font-size: 12px;
+    font-weight: bold;
+    fill: var(--teal);
+  }
+
+  /* ─── FOOTER ─── */
+  .viewer-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .viewer-footer button {
+    background: transparent;
+    border: none;
+    color: var(--teal);
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    outline: none;
+  }
+  .viewer-footer button:hover {
+    text-decoration: underline;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <a href="index.html" class="back-btn">← Back to XAI Dashboard</a>
+  
+  <header>
+    <div class="meta">
+      <span class="category-badge" id="noteCat">XAI Category</span>
+      <span class="note-num" id="noteNum">00</span>
+    </div>
+    <h1 id="noteTitle">Loading note...</h1>
+  </header>
+  
+  <article class="content" id="noteContent">
+    <!-- Content is dynamically rendered here -->
+  </article>
+  
+  <div class="viewer-footer">
+    <span>School of Engineering, Ajeenkya D Y Patil University, Pune</span>
+    <button id="copyBtn">Copy Formulas / Code</button>
+  </div>
+</div>
+
+<script src="notes-data.js"></script>
+<script>
+  // SVG Flowchart render templates
+  const svgEvalFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4da6ff" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#4da6ff" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Comprehensive Five-Method XAI Evaluation Framework</text>
+      <rect x="235" y="45" width="130" height="36" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="1.5"/>
+      <text x="300" y="67" text-anchor="middle" font-weight="bold">All Five XAI Methods</text>
+      <path d="M 235 63 L 95 63 L 95 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 81 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 365 63 L 505 63 L 505 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="95" y="132" text-anchor="middle">Fidelity Assessment</text>
+      <rect x="235" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="300" y="132" text-anchor="middle">Stability Analysis</text>
+      <rect x="440" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="505" y="132" text-anchor="middle">Computational Efficiency</text>
+      <path d="M 95 146 L 95 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 146 L 300 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 146 L 505 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="95" y="197" text-anchor="middle">Feature Removal Testing</text>
+      <rect x="235" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="197" text-anchor="middle">Multi-run Consistency</text>
+      <rect x="440" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="505" y="197" text-anchor="middle">Timing Analysis</text>
+      <path d="M 95 211 L 95 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 211 L 300 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 211 L 505 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="95" y="262" text-anchor="middle">Clinical Relevance</text>
+      <rect x="235" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="262" text-anchor="middle">Comprehensibility</text>
+      <rect x="440" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="505" y="262" text-anchor="middle">Trust Enhancement</text>
+      <path d="M 95 276 L 95 315 L 235 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 300 276 L 300 325" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 505 276 L 505 315 L 365 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <rect x="235" y="325" width="130" height="38" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="348" text-anchor="middle" font-weight="bold" fill="#00c7b7">Evaluation Results</text>
+    </svg>
+  `;
+
+  const svgHybridFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradPurp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#bf5af2" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#bf5af2" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradTeal2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Novel Five-Method Hybrid XAI Ensemble Framework</text>
+      <rect x="220" y="45" width="160" height="34" rx="6" fill="url(#gradPurp)" stroke="#bf5af2" stroke-width="1.5"/>
+      <text x="300" y="66" text-anchor="middle" font-weight="bold">Test Instance + Base Model</text>
+      <path d="M 220 62 L 60 62 L 60 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 260 79 L 180 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 79 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 340 79 L 420 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 380 62 L 540 62 L 540 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="15" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="60" y="131" text-anchor="middle">SHAP Value</text>
+      <rect x="135" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="180" y="131" text-anchor="middle">LIME Local</text>
+      <rect x="255" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="300" y="131" text-anchor="middle">Anchor Rules</text>
+      <rect x="375" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="420" y="131" text-anchor="middle">Int. Gradients</text>
+      <rect x="495" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="540" y="131" text-anchor="middle">Counterfactuals</text>
+      <path d="M 60 144 L 60 170 L 210 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 180 144 L 180 170 L 240 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 144 L 300 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 420 144 L 420 170 L 360 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 540 144 L 540 170 L 390 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="180" y="192" width="240" height="36" rx="6" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="214" text-anchor="middle">Confidence Weighting & Agreement Score</text>
+      <path d="M 300 228 L 300 252" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="252" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1"/>
+      <text x="300" y="272" text-anchor="middle">Weighted Attributions Union</text>
+      <path d="M 300 284 L 300 308" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="308" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="328" text-anchor="middle">Joint Importance Ranking</text>
+      <path d="M 300 340 L 300 365" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal2)"/>
+      <rect x="190" y="365" width="220" height="38" rx="6" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="388" text-anchor="middle" font-weight="bold" fill="#00c7b7">Unified Hybrid Explanation</text>
+    </svg>
+  `;
+
+  // Parse parameters
+  const params = new URLSearchParams(window.location.search);
+  let file = params.get('file');
+  
+  // Default fallback if note file parameter is missing
+  if (!file) {
+    file = "00_introduction_clinical_trust.md";
+  }
+
+  const noteCat = document.getElementById('noteCat');
+  const noteNum = document.getElementById('noteNum');
+  const noteTitle = document.getElementById('noteTitle');
+  const noteContent = document.getElementById('noteContent');
+  const copyBtn = document.getElementById('copyBtn');
+
+  if (file && notesData[file]) {
+    const note = notesData[file];
+    
+    // Set headers
+    noteCat.textContent = note.cat.replace('-', ' ');
+    noteNum.textContent = note.id;
+    noteTitle.textContent = note.title;
+    document.title = `${note.title} - XAI Note`;
+    
+    // Render content
+    let renderedContent = note.content;
+    
+    // Include SVG flowcharts
+    if (file === '09_fidelity_score_assessment.md') {
+      renderedContent += svgEvalFramework;
+    } else if (file === '08_hybrid_confidence_weighting.md') {
+      renderedContent += svgHybridFramework;
+    }
+    
+    noteContent.innerHTML = renderedContent;
+
+    // Code copy event
+    copyBtn.addEventListener('click', () => {
+      const codes = noteContent.querySelectorAll('code, .formula');
+      let copyText = '';
+      
+      if (codes.length > 0) {
+        codes.forEach(el => {
+          copyText += el.textContent + '\n\n';
+        });
+      } else {
+        copyText = noteContent.textContent;
+      }
+      
+      navigator.clipboard.writeText(copyText).then(() => {
+        copyBtn.textContent = '✓ Copied!';
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy Formulas / Code';
+        }, 1500);
+      });
+    });
+  } else {
+    // Graceful error state
+    noteCat.textContent = "Error";
+    noteNum.textContent = "404";
+    noteTitle.textContent = "Experiment Note Not Found";
+    noteContent.innerHTML = `
+      <div class="callout negative">
+        <strong>Error:</strong> The requested experiment note file is missing or invalid.
+      </div>
+      <p>Please return to the main XAI dashboard to select a valid entry.</p>
+      <a href="index.html" class="back-btn" style="margin-top: 1.5rem; display: block;">← Return to Clinical Dashboard</a>
+    `;
+    copyBtn.style.display = 'none';
+  }
+</script>
+</body>
+</html>
