@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ClinicalXAI - Interactive Procedural Guide</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --bg2: #0f1218;
+    --bg3: #151b24;
+    --surface: #1a2130;
+    --surface2: #212d3d;
+    --border: #2a3a50;
+    --orange: #ff9900;
+    --orange-dim: #cc7a00;
+    --orange-glow: rgba(255,153,0,0.15);
+    --teal: #00c7b7;
+    --teal-glow: rgba(0, 199, 183, 0.15);
+    --blue: #4da6ff;
+    --blue-glow: rgba(77, 166, 255, 0.15);
+    --green: #39d353;
+    --green-glow: rgba(57, 211, 83, 0.15);
+    --red: #f85149;
+    --red-glow: rgba(248, 81, 73, 0.15);
+    --text: #e2e8f0;
+    --text-muted: #8899aa;
+    --text-dim: #4a6070;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    min-height: 100vh;
+    padding-top: 60px; /* Space for sticky navbar */
+  }
+
+  /* Noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.4;
+  }
+
+  /* ─── GLOBAL HEADER ─── */
+  .global-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    gap: 1.5rem;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-left: 1rem;
+  }
+  .nav-link {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    padding: 5px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid transparent;
+  }
+  .nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .nav-link.active {
+    color: var(--teal);
+    background: var(--teal-glow);
+    border-color: rgba(0, 199, 183, 0.25);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--teal);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--teal);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #000;
+    font-weight: 700;
+  }
+
+  /* ─── PROCEDURAL LAYOUT ─── */
+  .portal-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2.5rem 2rem;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2.5rem;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── PROCEDURAL INDEX SIDEBAR ─── */
+  .procedural-sidebar {
+    position: sticky;
+    top: 85px;
+    height: calc(100vh - 120px);
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+
+  .sidebar-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--text-dim);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+
+  .steps-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    flex: 1;
+    overflow-y: auto;
+  }
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+
+  .step-item:hover {
+    background: var(--surface);
+    color: #fff;
+  }
+
+  .step-item.active {
+    background: var(--surface2);
+    color: var(--teal);
+    border-color: var(--border);
+  }
+
+  .step-bubble {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+
+  .step-item.active .step-bubble {
+    background: var(--teal);
+    color: #000;
+    border-color: var(--teal);
+  }
+
+  /* ─── PROCEDURAL VIEWER CARD ─── */
+  .procedural-content {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 3rem;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    min-height: 500px;
+  }
+
+  /* ─── STEP CARD CONTENT ─── */
+  .step-card {
+    display: none;
+    animation: fadeUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .step-card.active {
+    display: block;
+  }
+
+  .step-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+  }
+
+  .step-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--orange);
+    background: var(--orange-glow);
+    border: 1px solid rgba(255,153,0,0.3);
+    padding: 3px 8px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    display: inline-block;
+    margin-bottom: 0.75rem;
+  }
+
+  .step-card h1 {
+    font-family: var(--mono);
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+  }
+
+  .step-card h2 {
+    font-family: var(--mono);
+    font-size: 18px;
+    color: var(--teal);
+    margin: 2rem 0 1rem;
+    border-left: 3px solid var(--teal);
+    padding-left: 0.75rem;
+  }
+
+  .step-card h3 {
+    font-family: var(--sans);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 600;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .step-card p {
+    color: var(--text-muted);
+    margin-bottom: 1.25rem;
+  }
+
+  /* Callouts & boxes */
+  .callout {
+    border-left: 4px solid var(--border);
+    padding: 1rem 1.25rem;
+    background: var(--surface);
+    border-radius: 0 8px 8px 0;
+    margin: 1.5rem 0;
+  }
+  .callout.warning {
+    border-color: var(--orange);
+    background: var(--orange-glow);
+  }
+  .callout.info {
+    border-color: var(--blue);
+    background: var(--blue-glow);
+  }
+  .callout.positive {
+    border-color: var(--green);
+    background: var(--green-glow);
+  }
+  .callout strong {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-family: var(--sans);
+    font-size: 13.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .callout.warning strong { color: var(--orange); }
+  .callout.info strong { color: var(--blue); }
+  .callout.positive strong { color: var(--green); }
+
+  pre {
+    background: #050608;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    position: relative;
+  }
+  code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #e2e8f0;
+  }
+  p code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12.5px;
+    color: var(--teal);
+  }
+
+  .formula-display {
+    text-align: center;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1.25rem;
+    border-radius: 8px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    color: var(--blue);
+    margin: 1.5rem 0;
+    overflow-x: auto;
+  }
+
+  /* Sub-tabs for Explainer comparisons */
+  .sub-tabs-header {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    margin: 1.5rem 0 1rem;
+    gap: 0.5rem;
+  }
+  .sub-tab-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+  }
+  .sub-tab-btn:hover {
+    color: #fff;
+  }
+  .sub-tab-btn.active {
+    color: var(--teal);
+    border-bottom-color: var(--teal);
+  }
+  .sub-tab-content {
+    display: none;
+  }
+  .sub-tab-content.active {
+    display: block;
+    animation: fadeUp 0.3s ease forwards;
+  }
+
+  /* Flowchart SVG styles */
+  .flow-svg {
+    width: 100%;
+    max-width: 620px;
+    height: auto;
+    margin: 2rem auto;
+    display: block;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  }
+  .flow-svg text {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--text);
+  }
+  .flow-svg .title {
+    font-size: 12px;
+    font-weight: bold;
+    fill: var(--teal);
+  }
+  .flow-svg rect {
+    transition: all 0.3s;
+  }
+  .flow-svg rect:hover {
+    stroke: var(--teal) !important;
+    filter: drop-shadow(0 0 6px var(--teal-glow)) !important;
+    cursor: pointer;
+  }
+
+  /* ─── PROCEDURAL SIMULATOR WIDGET ─── */
+  .sim-widget {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+  }
+  .sim-row {
+    display: grid;
+    grid-template-columns: 180px 1fr 60px;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .sim-label {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text);
+  }
+  .sim-range {
+    width: 100%;
+    accent-color: var(--teal);
+    cursor: pointer;
+  }
+  .sim-val {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--blue);
+    text-align: right;
+  }
+  .sim-gauge-area {
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+    text-align: center;
+  }
+  .sim-result {
+    font-size: 18px;
+    font-family: var(--mono);
+    font-weight: bold;
+    color: var(--teal);
+    margin-top: 0.5rem;
+  }
+
+  /* Lists & Tables */
+  ul {
+    padding-left: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  li {
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 13.5px;
+  }
+  th {
+    border-bottom: 2px solid var(--border);
+    padding: 8px;
+    text-align: left;
+    color: #fff;
+    font-weight: 600;
+  }
+  td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px;
+    color: var(--text-muted);
+  }
+
+  /* ─── COPY BUTTON ─── */
+  .copy-btn {
+    position: absolute;
+    top: 10px; right: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .copy-btn:hover {
+    color: #fff;
+    border-color: var(--teal);
+  }
+
+  /* ─── PROCEDURAL FOOTER ─── */
+  .viewer-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border);
+    margin-top: 3rem;
+    padding-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+
+  /* ─── ANIMATIONS ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ─── RESPONSIVENESS ─── */
+  @media (max-width: 992px) {
+    .portal-container {
+      grid-template-columns: 1fr;
+      padding: 1.5rem 1rem;
+    }
+    .procedural-sidebar {
+      position: relative;
+      top: 0 !important;
+      height: auto;
+    }
+    .steps-list {
+      flex-direction: row;
+      flex-wrap: wrap;
+      overflow-y: visible;
+    }
+    .step-item {
+      flex: 1 1 200px;
+    }
+  }
+
+  @media (max-width: 900px) {
+    /* Global Header Navigation wrapping */
+    .global-header {
+      height: auto !important;
+      padding: 1rem 1.5rem !important;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+    .nav-links {
+      margin-left: 0;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    body {
+      padding-top: 120px !important;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .procedural-content {
+      padding: 1.75rem 1.25rem !important;
+      border-radius: 8px;
+    }
+    .viewer-footer {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .sim-row {
+      grid-template-columns: 1fr !important;
+      gap: 0.25rem !important;
+      margin-bottom: 1.5rem;
+    }
+    .sim-val {
+      text-align: left !important;
+    }
+  }
+
+  @media (max-width: 500px) {
+    .sub-tabs-header {
+      overflow-x: auto;
+      white-space: nowrap;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 4px;
+    }
+    .sub-tabs-header::-webkit-scrollbar {
+      display: none;
+    }
+    .sub-tab-btn {
+      flex: 0 0 auto;
+    }
+  }
+</style>
+</head>
+<body>
+
+<!-- GLOBAL NAVIGATION HEADER -->
+<div class="global-header">
+  <a class="logo" href="index.html">
+    <div class="logo-icon">🧬</div>
+    ClinicalXAI
+  </a>
+  <nav class="nav-links">
+    <a href="index.html" class="nav-link">🩺 Dashboard</a>
+    <a href="procedures.html" class="nav-link active">📚 Procedures</a>
+    <a href="notes.html?file=00_introduction_clinical_trust.md" class="nav-link">📝 Research Notes</a>
+  </nav>
+</div>
+
+<!-- PORTAL CONTAINER -->
+<div class="portal-container">
+  
+  <!-- PROCEDURAL INDEX SIDEBAR -->
+  <aside class="procedural-sidebar">
+    <div class="sidebar-title">Pipeline Steps</div>
+    <nav class="steps-list">
+      <a class="step-item active" onclick="activateStep(1)">
+        <div class="step-bubble">1</div>
+        Data Preprocessing
+      </a>
+      <a class="step-item" onclick="activateStep(2)">
+        <div class="step-bubble">2</div>
+        Bayesian Optimization
+      </a>
+      <a class="step-item" onclick="activateStep(3)">
+        <div class="step-bubble">3</div>
+        Local Explainers
+      </a>
+      <a class="step-item" onclick="activateStep(4)">
+        <div class="step-bubble">4</div>
+        Hybrid Ensemble
+      </a>
+      <a class="step-item" onclick="activateStep(5)">
+        <div class="step-bubble">5</div>
+        Fidelity & Flowcharts
+      </a>
+      <a class="step-item" onclick="activateStep(6)">
+        <div class="step-bubble">6</div>
+        Containerization
+      </a>
+      <a class="step-item" onclick="activateStep(7)">
+        <div class="step-bubble">7</div>
+        Cloud Deployment
+      </a>
+    </nav>
+  </aside>
+
+  <!-- PROCEDURAL VIEWER CARD -->
+  <main class="procedural-content">
+
+    <!-- STEP 1: PREPROCESSING -->
+    <div class="step-card active" id="stepCard1">
+      <div class="step-header">
+        <span class="step-tag">Step 01 / Preprocessing</span>
+        <h1>Clinical Preprocessing & FNA Features</h1>
+      </div>
+      
+      <p>Converting raw cytological aspirates into model-ready features requires structured standardization and domain-specific feature engineering. This ensures high stability and clinical relevance during model training.</p>
+      
+      <h2>1. Wisconsin Breast Cancer dataset</h2>
+      <p>The Wisconsin FNA dataset contains <strong>569 instances</strong> representing cell nucleus measurements extracted from fine-needle aspirates (FNA). Each nucleus has 10 core features (e.g. radius, perimeter, concavity), leading to 30 overall features representing mean, standard error, and worst values.</p>
+
+      <h2>2. Z-Score Standardization</h2>
+      <p>Because features like cell area are in thousands while smoothness measurements are in decimals, raw models would experience significant gradient bias. We standardise the inputs using Z-Score scaling:</p>
+      <div class="formula-display">
+        z = (x - &mu;) / &sigma;
+      </div>
+      <p>Where <code>&mu;</code> is the training mean and <code>&sigma;</code> is the training standard deviation, ensuring all final inputs scale to a zero mean and unit variance.</p>
+
+      <h2>3. Domain-Specific Feature Engineering</h2>
+      <p>To capture non-linear morphological relationships, we construct four highly informative engineered features:</p>
+      
+      <h3>1. Perimeter-to-Area Ratio (r<sub>pa</sub>)</h3>
+      <p>Identifies cell border elongation and shape irregularity:</p>
+      <div class="formula-display">
+        r<sub>pa</sub> = perimeter_mean / area_mean
+      </div>
+      
+      <h3>2. Concavity-to-Points Ratio (c<sub>ratio</sub>)</h3>
+      <p>Evaluates the relationship between average structural indentations and cell irregularities:</p>
+      <div class="formula-display">
+        c<sub>ratio</sub> = concavity_mean / concave_points_mean
+      </div>
+
+      <h3>3. Radius worst deviation (Radius Growth)</h3>
+      <p>Quantifies tumor cell size heterogeneity across samples:</p>
+      <div class="formula-display">
+        Radius Growth = radius_worst - radius_mean
+      </div>
+
+      <h3>4. Compactness worst deviation (Compactness Growth)</h3>
+      <p>Measures density structural packing deviations:</p>
+      <div class="formula-display">
+        Compactness Growth = compactness_worst - compactness_mean
+      </div>
+
+      <h2>4. Data Preparation Code</h2>
+      <p>To inspect how scaling and feature mapping are initialized, review the implementation snippet:</p>
+      <pre><button class="copy-btn" onclick="copySnippet(this)">Copy</button><code class="language-python"># Preprocessing implementation in train_model_enhanced.py
+import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+
+# Load dataset
+df = pd.read_csv('breast-cancer.csv')
+X = df.drop(columns=['id', 'diagnosis'])
+y = df['diagnosis'].map({'M': 1, 'B': 0})
+
+# Engineered Features
+X['perimeter_area_ratio'] = X['perimeter_mean'] / (X['area_mean'] + 1e-8)
+X['concavity_points_ratio'] = X['concavity_mean'] / (X['concave points_mean'] + 1e-8)
+X['radius_growth'] = X['radius_worst'] - X['radius_mean']
+X['compactness_growth'] = X['compactness_worst'] - X['compactness_mean']
+
+# Split & Scale
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=42)
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)</code></pre>
+    </div>
+
+    <!-- STEP 2: BAYESIAN OPTIMIZATION -->
+    <div class="step-card" id="stepCard2">
+      <div class="step-header">
+        <span class="step-tag">Step 02 / Optimization</span>
+        <h1>Bayesian Hyperparameter Optimization</h1>
+      </div>
+      
+      <p>We train an ensemble of five distinct base classifiers (LightGBM, XGBoost, Random Forest, Logistic Regression, and Gradient Boosting) and tune them using **Optuna** Bayesian optimization.</p>
+      
+      <h2>1. The Multi-Model Classifier Suite</h2>
+      <p>Rather than relying on a single estimator, we train diverse modeling paradigms to balance performance and explainability boundaries:</p>
+      <ul>
+        <li><strong>XGBoost / LightGBM:</strong> High-performance decision-tree boosting architectures capturing non-linear feature splits.</li>
+        <li><strong>Random Forest:</strong> High stability bagging method that reduces prediction variance.</li>
+        <li><strong>Logistic Regression:</strong> Linear baseline classifier providing high interpretability comparison.</li>
+      </ul>
+
+      <h2>2. Bayesian Optimization with Optuna</h2>
+      <p>We configure an objective function optimized via tree-structured Parzen Estimators (TPE) over a stratified 5-fold cross-validation scheme. This locates optimal parameters while preventing overfitting:</p>
+      <pre><button class="copy-btn" onclick="copySnippet(this)">Copy</button><code class="language-python"># Bayesian Tuning Objective
+def objective(trial):
+    params = {
+        'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+        'max_depth': trial.suggest_int('max_depth', 3, 10),
+        'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.2, log=True),
+        'subsample': trial.suggest_float('subsample', 0.6, 1.0)
+    }
+    model = xgb.XGBClassifier(**params, random_state=42)
+    scores = cross_val_score(model, X_train_scaled, y_train, cv=5, scoring='accuracy')
+    return scores.mean()
+
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=50)</code></pre>
+
+      <h2>3. Benchmarks & Ablation Results</h2>
+      <p>Through Bayesian optimization, our LightGBM model reaches a peak <strong>ROC-AUC of 0.9952</strong> and accuracy of <strong>97.37%</strong>. Feature engineering ablation shows a substantial increase in metrics:</p>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Model Config</th>
+            <th>Accuracy</th>
+            <th>Precision</th>
+            <th>Recall</th>
+            <th>F1-Score</th>
+            <th>ROC-AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Raw Model Baseline</td>
+            <td>94.74%</td>
+            <td>93.02%</td>
+            <td>93.02%</td>
+            <td>93.02%</td>
+            <td>0.9856</td>
+          </tr>
+          <tr>
+            <td>Bayesian Opt (Optuna)</td>
+            <td>96.49%</td>
+            <td>95.35%</td>
+            <td>95.35%</td>
+            <td>95.35%</td>
+            <td>0.9921</td>
+          </tr>
+          <tr>
+            <td style="color: var(--teal); font-weight: bold;">Ensemble + Feature Eng (Final)</td>
+            <td style="color: var(--teal); font-weight: bold;">97.37%</td>
+            <td style="color: var(--teal); font-weight: bold;">97.62%</td>
+            <td style="color: var(--teal); font-weight: bold;">95.35%</td>
+            <td style="color: var(--teal); font-weight: bold;">96.47%</td>
+            <td style="color: var(--teal); font-weight: bold;">0.9952</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- STEP 3: LOCAL EXPLAINERS -->
+    <div class="step-card" id="stepCard3">
+      <div class="step-header">
+        <span class="step-tag">Step 03 / Explainability</span>
+        <h1>Multi-Method Explainer Foundations</h1>
+      </div>
+      
+      <p>We deploy four independent post-hoc explainability methods to capture local predictions from distinct mathematical perspectives (attributions, local surrogates, rules, and gradients).</p>
+      
+      <!-- Sub-tabs for explainers -->
+      <div class="sub-tabs-header">
+        <button class="sub-tab-btn active" onclick="activateSubTab(this, 'shap')">SHAP Attributions</button>
+        <button class="sub-tab-btn" onclick="activateSubTab(this, 'lime')">LIME Surrogates</button>
+        <button class="sub-tab-btn" onclick="activateSubTab(this, 'anchors')">Anchor Rules</button>
+        <button class="sub-tab-btn" onclick="activateSubTab(this, 'ig')">Integrated Gradients</button>
+      </div>
+
+      <!-- SHAP Content -->
+      <div class="sub-tab-content active" id="subTabContent_shap">
+        <h3>SHAP (SHapley Additive exPlanations)</h3>
+        <p>SHAP leverages cooperative game theory to distribute the payout (difference between prediction and baseline) fairly among features. It guarantees unique properties:</p>
+        <ul>
+          <li><strong>Efficiency:</strong> The sum of feature attributions equals the model prediction minus baseline output.</li>
+          <li><strong>Symmetry:</strong> Identical features receive identical attributions.</li>
+          <li><strong>Dummy:</strong> Features that do not affect the prediction receive zero attribution.</li>
+        </ul>
+        <div class="formula-display">
+          &phi;<sub>i</sub> = &Sigma;<sub>S &sube; N \ {i}</sub> [ |S|!(|N| - |S| - 1)! / |N|! ] &times; [ v(S &cup; {i}) - v(S) ]
+        </div>
+        <p>Where <code>v(S)</code> is the expected model prediction given the feature subset <code>S</code>.</p>
+      </div>
+
+      <!-- LIME Content -->
+      <div class="sub-tab-content" id="subTabContent_lime">
+        <h3>LIME (Local Interpretable Model-agnostic Explanations)</h3>
+        <p>LIME builds a local interpretable surrogate model (like a linear regression) by perturbing the target sample and measuring how predictions shift:</p>
+        <div class="formula-display">
+          &xi;(x) = arg min<sub>g &isin; G</sub> L(f, g, &pi;<sub>x</sub>) + &Omega;(g)
+        </div>
+        <p>Where:</p>
+        <ul>
+          <li><code>L(f, g, &pi;<sub>x</sub>)</code> is the local unfaithfulness of the surrogate model <code>g</code> compared to base model <code>f</code>.</li>
+          <li><code>&pi;<sub>x</sub>(z)</code> is the exponential proximity distance kernel weighting perturbations:</li>
+        </ul>
+        <div class="formula-display">
+          &pi;<sub>x</sub>(z) = exp( -D(x, z)<sup>2</sup> / &sigma;<sup>2</sup> )
+        </div>
+      </div>
+
+      <!-- Anchors Content -->
+      <div class="sub-tab-content" id="subTabContent_anchors">
+        <h3>Anchor Explanations (High-Precision Rules)</h3>
+        <p>Anchors discover local high-precision IF-THEN rules that guarantee the prediction remains unchanged within a defined neighborhood bounded by coverage:</p>
+        <div class="formula-display">
+          Prec(A) = P( f(z) == f(x) | A(z) == 1 ) &ge; &tau;
+        </div>
+        <p>Where <code>A</code> represents the set of rule predicates, and <code>&tau;</code> is the target precision threshold (usually 95%). This guarantees clear malignant/benign bounds like:</p>
+        <div class="callout warning">
+          <strong>Example Anchor Rule:</strong> IF <code>worst_concave_points > 0.147</code> AND <code>perimeter_area_ratio < 0.082</code> THEN diagnosis is <strong>MALIGNANT</strong> (Precision: 98.4%, Coverage: 21.2%).
+        </div>
+      </div>
+
+      <!-- IG Content -->
+      <div class="sub-tab-content" id="subTabContent_ig">
+        <h3>Integrated Gradients</h3>
+        <p>Integrated Gradients aggregates gradients along a straight path from a baseline reference input (like zero features) to the target input, ensuring axiom completeness:</p>
+        <div class="formula-display">
+          IG<sub>i</sub>(x) = (x<sub>i</sub> - x'<sub>i</sub>) &times; &int;<sub>0</sub><sup>1</sup> [&part;f(x' + &alpha;(x - x')) / &part;x<sub>i</sub>] d&alpha;
+        </div>
+        <p>Approximated numerically via finite-difference Riemann sums:</p>
+        <div class="formula-display">
+          IG<sub>i</sub><sup>approx</sup>(x) = (x<sub>i</sub> - x'<sub>i</sub>) / M &times; &Sigma;<sub>k=1</sub><sup>M</sup> [&part;f(x' + k/M &times; (x - x')) / &part;x<sub>i</sub>]
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: HYBRID ENSEMBLE -->
+    <div class="step-card" id="stepCard4">
+      <div class="step-header">
+        <span class="step-tag">Step 04 / Ensemble</span>
+        <h1>Unified Hybrid XAI Ensemble</h1>
+      </div>
+      
+      <p>Individual XAI methods can generate conflicting attributions due to their mathematical differences. We introduce a confidence-weighted ensemble algorithm to compute a stable consensus.</p>
+      
+      <h2>1. The Ensemble Algorithm</h2>
+      <p>We normalize local attributions from SHAP, LIME, and Integrated Gradients, then weight them using model confidence and explanation fidelity scores:</p>
+      <div class="formula-display">
+        Attribution<sub>ensemble</sub> = w<sub>SHAP</sub> &middot; &phi;<sub>SHAP</sub> + w<sub>LIME</sub> &middot; &phi;<sub>LIME</sub> + w<sub>IG</sub> &middot; &phi;<sub>IG</sub>
+      </div>
+      <p>Where the weights are dynamically calculated on the fly based on local method agreement scores.</p>
+
+      <h2>2. Interactive Weight-Consensus Simulator</h2>
+      <p>Adjust the slider handles below to simulate how the model's confidence and local explainer weights dynamically shift the joint consensus attribution report:</p>
+      
+      <div class="sim-widget">
+        <div class="sim-row">
+          <span class="sim-label">SHAP Weight (w<sub>SHAP</sub>)</span>
+          <input type="range" class="sim-range" id="simSHAP" min="0" max="1" step="0.05" value="0.5" oninput="runSim()">
+          <span class="sim-val" id="valSHAP">0.50</span>
+        </div>
+        <div class="sim-row">
+          <span class="sim-label">LIME Weight (w<sub>LIME</sub>)</span>
+          <input type="range" class="sim-range" id="simLIME" min="0" max="1" step="0.05" value="0.3" oninput="runSim()">
+          <span class="sim-val" id="valLIME">0.30</span>
+        </div>
+        <div class="sim-row">
+          <span class="sim-label">IG Weight (w<sub>IG</sub>)</span>
+          <input type="range" class="sim-range" id="simIG" min="0" max="1" step="0.05" value="0.2" oninput="runSim()">
+          <span class="sim-val" id="valIG">0.20</span>
+        </div>
+        
+        <div class="sim-gauge-area">
+          <div class="sim-label">Consensus Attributions Agreement Score</div>
+          <div class="sim-result" id="simResult">79.2% Agreement (High Consensus)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5: FIDELITY & FLOWCHARTS -->
+    <div class="step-card" id="stepCard5">
+      <div class="step-header">
+        <span class="step-tag">Step 05 / Auditing</span>
+        <h1>Fidelity Audits & SVGs</h1>
+      </div>
+      
+      <p>A trustworthy clinical system requires rigorous evaluation. We audit local explanations using quantitative Fidelity and Stability metrics, visualized via high-fidelity interactive flowcharts.</p>
+      
+      <h2>1. Explanation Fidelity Metrics</h2>
+      <p>We calculate **Fidelity** by checking how model accuracy degrades when high-importance features are removed:</p>
+      <div class="formula-display">
+        Fidelity = Acc(f(x)) - Acc(f(x \ x<sub>top</sub>))
+      </div>
+      <p>A higher drop indicates the explainer identified genuinely critical features.</p>
+
+      <h2>2. Interactive SVG System Flowcharts</h2>
+      
+      <h3>1. Five-Method XAI Evaluation Framework</h3>
+      <div id="svgContainer1"></div>
+      
+      <h3>2. Five-Method Hybrid XAI Ensemble Framework</h3>
+      <div id="svgContainer2"></div>
+    </div>
+
+    <!-- STEP 6: CONTAINERIZATION -->
+    <div class="step-card" id="stepCard6">
+      <div class="step-header">
+        <span class="step-tag">Step 06 / Engineering</span>
+        <h1>Multi-Mode Docker Containerization</h1>
+      </div>
+      
+      <p>To prepare ClinicalXAI for secure cloud deployment, we encapsulate all training and explanation assets in a containerized environment using a multi-mode entrypoint configuration.</p>
+      
+      <h2>1. Multi-Mode entrypoint.sh Workflow</h2>
+      <p>We design a script that enables the same Docker container to function as either an **API serving endpoint** or a **Streamlit dashboard portal** based on an environment variable:</p>
+      
+      <pre><button class="copy-btn" onclick="copySnippet(this)">Copy</button><code class="language-bash">#!/bin/bash
+# docker-entrypoint.sh
+if [ "$APP_MODE" = "STREAMLIT" ]; then
+    echo "Launching Streamlit Clinical Dashboard..."
+    exec streamlit run dashboard.py --server.port=8501 --server.address=0.0.0.0
+else
+    echo "Launching FastAPI Serving Server..."
+    exec uvicorn app_enhanced:app --host 0.0.0.0 --port 8000
+fi</code></pre>
+
+      <h2>2. Dockerfile Design</h2>
+      <p>The multi-stage <code>Dockerfile</code> installs core ML dependencies (SHAP, LIME, Optuna, Streamlit, FastAPI), compiles optimized models, and exposes ports <code>8000</code> and <code>8501</code>:</p>
+      
+      <pre><button class="copy-btn" onclick="copySnippet(this)">Copy</button><code class="language-dockerfile"># Dockerfile
+FROM python:3.10-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000 8501
+RUN chmod +x docker-entrypoint.sh
+ENTRYPOINT ["./docker-entrypoint.sh"]</code></pre>
+    </div>
+
+    <!-- STEP 7: CLOUD DEPLOYMENT -->
+    <div class="step-card" id="stepCard7">
+      <div class="step-header">
+        <span class="step-tag">Step 07 / Cloud</span>
+        <h1>Cloud Deployment (AWS + GCP)</h1>
+      </div>
+      
+      <p>For lock-down enterprise healthcare environments where local scripts are restricted, we establish manual console procedures for AWS and Google Cloud.</p>
+      
+      <h2>1. Google Cloud (Vertex AI) Manual Console Steps</h2>
+      <ol>
+        <li><strong>Artifact Registry Repo:</strong> Navigate to Artifact Registry, create a repository named <code>xai-images</code>, and push the Docker image:
+          <pre><code class="language-bash">gcloud auth configure-docker us-central1-docker.pkg.dev
+docker tag xai:latest us-central1-docker.pkg.dev/my-project/xai-images/xai:v1
+docker push us-central1-docker.pkg.dev/my-project/xai-images/xai:v1</code></pre>
+        </li>
+        <li><strong>Import Model:</strong> Go to Vertex AI Models, click <code>Import</code>, specify container image, and configure prediction routes.</li>
+        <li><strong>Deploy Endpoint:</strong> Deploy model to an endpoint with <code>n1-standard-4</code> instances for fast inference.</li>
+      </ol>
+
+      <h2>2. AWS (SageMaker) Manual Console Steps</h2>
+      <ol>
+        <li><strong>ECR Repository:</strong> Create an AWS Elastic Container Registry repository named <code>xai/inference</code>.</li>
+        <li><strong>CloudShell Image Build:</strong> Open CloudShell, pull the source, build and push to ECR:
+          <pre><code class="language-bash">IMAGE_URI="\${AWS_ACCOUNT_ID}.dkr.ecr.\${AWS_REGION}.amazonaws.com/xai/inference:v1"
+docker build -t "\${IMAGE_URI}" .
+docker push "\${IMAGE_URI}"</code></pre>
+        </li>
+        <li><strong>SageMaker Endpoint:</strong> Go to SageMaker Models, create model referencing ECR URI, configure endpoint group, and launch.</li>
+      </ol>
+      
+      <div class="callout warning">
+        <strong>CloudShell Space Recovery:</strong> If CloudShell hits a <code>No space left on device</code> error, prune docker caches:
+        <pre><code class="language-bash">docker system prune -af --volumes</code></pre>
+      </div>
+    </div>
+
+    <!-- PROCEDURAL FOOTER -->
+    <footer class="viewer-footer">
+      <span>School of Engineering, Ajeenkya D Y Patil University, Pune</span>
+      <span>v4.0 Procedural Guide</span>
+    </footer>
+
+  </main>
+</div>
+
+<!-- INLINE SCRIPTS -->
+<script>
+  // SVG Flowchart render templates
+  const svgEvalFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradTeal" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#4da6ff" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#4da6ff" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Comprehensive Five-Method XAI Evaluation Framework</text>
+      <rect x="235" y="45" width="130" height="36" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="1.5"/>
+      <text x="300" y="67" text-anchor="middle" font-weight="bold">All Five XAI Methods</text>
+      <path d="M 235 63 L 95 63 L 95 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 81 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 365 63 L 505 63 L 505 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="95" y="132" text-anchor="middle">Fidelity Assessment</text>
+      <rect x="235" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="300" y="132" text-anchor="middle">Stability Analysis</text>
+      <rect x="440" y="110" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#4da6ff" stroke-width="1.2"/>
+      <text x="505" y="132" text-anchor="middle">Computational Efficiency</text>
+      <path d="M 95 146 L 95 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 146 L 300 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 146 L 505 175" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="95" y="197" text-anchor="middle">Feature Removal Testing</text>
+      <rect x="235" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="197" text-anchor="middle">Multi-run Consistency</text>
+      <rect x="440" y="175" width="130" height="36" rx="6" fill="url(#gradBlue)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="505" y="197" text-anchor="middle">Timing Analysis</text>
+      <path d="M 95 211 L 95 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 300 211 L 300 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <path d="M 505 211 L 505 240" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow)"/>
+      <rect x="30" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="95" y="262" text-anchor="middle">Clinical Relevance</text>
+      <rect x="235" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="262" text-anchor="middle">Comprehensibility</text>
+      <rect x="440" y="240" width="130" height="36" rx="6" fill="url(#gradGreen)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="505" y="262" text-anchor="middle">Trust Enhancement</text>
+      <path d="M 95 276 L 95 315 L 235 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 300 276 L 300 325" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <path d="M 505 276 L 505 315 L 365 315" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal)"/>
+      <rect x="235" y="325" width="130" height="38" rx="6" fill="url(#gradTeal)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="348" text-anchor="middle" font-weight="bold" fill="#00c7b7">Evaluation Results</text>
+    </svg>
+  `;
+
+  const svgHybridFramework = `
+    <svg viewBox="0 0 600 420" class="flow-svg" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="gradPurp" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#bf5af2" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#bf5af2" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradTeal2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#00c7b7" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#00c7b7" stop-opacity="0.05"/>
+        </linearGradient>
+        <linearGradient id="gradGreen2" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#39d353" stop-opacity="0.2"/>
+          <stop offset="100%" stop-color="#39d353" stop-opacity="0.05"/>
+        </linearGradient>
+        <marker id="arrow2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#2a3a50"/>
+        </marker>
+        <marker id="arrowTeal2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 1.5 L 6 5 L 0 8.5 z" fill="#00c7b7"/>
+        </marker>
+      </defs>
+      <text x="300" y="25" text-anchor="middle" class="title" fill="#00c7b7">Novel Five-Method Hybrid XAI Ensemble Framework</text>
+      <rect x="220" y="45" width="160" height="34" rx="6" fill="url(#gradPurp)" stroke="#bf5af2" stroke-width="1.5"/>
+      <text x="300" y="66" text-anchor="middle" font-weight="bold">Test Instance + Base Model</text>
+      <path d="M 220 62 L 60 62 L 60 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 260 79 L 180 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 79 L 300 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 340 79 L 420 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 380 62 L 540 62 L 540 110" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="15" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="60" y="131" text-anchor="middle">SHAP Value</text>
+      <rect x="135" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="180" y="131" text-anchor="middle">LIME Local</text>
+      <rect x="255" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="300" y="131" text-anchor="middle">Anchor Rules</text>
+      <rect x="375" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="420" y="131" text-anchor="middle">Int. Gradients</text>
+      <rect x="495" y="110" width="90" height="34" rx="4" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="1"/>
+      <text x="540" y="131" text-anchor="middle">Counterfactuals</text>
+      <path d="M 60 144 L 60 170 L 210 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 180 144 L 180 170 L 240 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 300 144 L 300 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 420 144 L 420 170 L 360 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <path d="M 540 144 L 540 170 L 390 192" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="180" y="192" width="240" height="36" rx="6" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1.2"/>
+      <text x="300" y="214" text-anchor="middle">Confidence Weighting & Agreement Score</text>
+      <path d="M 300 228 L 300 252" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="252" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#39d353" stroke-width="1"/>
+      <text x="300" y="272" text-anchor="middle">Weighted Attributions Union</text>
+      <path d="M 300 284 L 300 308" fill="none" stroke="#2a3a50" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <rect x="200" y="308" width="200" height="32" rx="4" fill="url(#gradGreen2)" stroke="#2a3a50" stroke-width="1"/>
+      <text x="300" y="328" text-anchor="middle">Joint Importance Ranking</text>
+      <path d="M 300 340 L 300 365" fill="none" stroke="#00c7b7" stroke-width="1.5" marker-end="url(#arrowTeal2)"/>
+      <rect x="190" y="365" width="220" height="38" rx="6" fill="url(#gradTeal2)" stroke="#00c7b7" stroke-width="2"/>
+      <text x="300" y="388" text-anchor="middle" font-weight="bold" fill="#00c7b7">Unified Hybrid Explanation</text>
+    </svg>
+  `;
+
+  // Inject Flowchart SVGs immediately on load
+  document.getElementById('svgContainer1').innerHTML = svgEvalFramework;
+  document.getElementById('svgContainer2').innerHTML = svgHybridFramework;
+
+  // Global Step Controller
+  const activateStep = (stepNumber) => {
+    // Deactivate all steps & cards
+    document.querySelectorAll('.step-item').forEach(item => item.classList.remove('active'));
+    document.querySelectorAll('.step-card').forEach(card => card.classList.remove('active'));
+    
+    // Activate target
+    const targetItem = document.querySelectorAll('.step-item')[stepNumber - 1];
+    targetItem.classList.add('active');
+    
+    const targetCard = document.getElementById(`stepCard${stepNumber}`);
+    targetCard.classList.add('active');
+
+    // Scroll to viewer container smoothly on mobile
+    if (window.innerWidth <= 992) {
+      document.querySelector('.procedural-content').scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  // Sub Tab Controller inside Step 3
+  const activateSubTab = (btn, explainerId) => {
+    // Deactivate sibling buttons
+    const header = btn.closest('.sub-tabs-header');
+    header.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+    
+    // Deactivate sibling contents
+    const parentCard = btn.closest('.step-card');
+    parentCard.querySelectorAll('.sub-tab-content').forEach(c => c.classList.remove('active'));
+    
+    // Activate
+    btn.classList.add('active');
+    document.getElementById(`subTabContent_${explainerId}`).classList.add('active');
+  };
+
+  // Copy Snippet Logic
+  const copySnippet = (button) => {
+    const codeBlock = button.nextElementSibling;
+    const textToCopy = codeBlock.textContent;
+    
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      button.textContent = '✓ Copied!';
+      setTimeout(() => {
+        button.textContent = 'Copy';
+      }, 1500);
+    });
+  };
+
+  // Dynamic Consensus Weight Simulator
+  const runSim = () => {
+    const shap = parseFloat(document.getElementById('simSHAP').value);
+    const lime = parseFloat(document.getElementById('simLIME').value);
+    const ig = parseFloat(document.getElementById('simIG').value);
+    
+    // Update labels
+    document.getElementById('valSHAP').textContent = shap.toFixed(2);
+    document.getElementById('valLIME').textContent = lime.toFixed(2);
+    document.getElementById('valIG').textContent = ig.toFixed(2);
+    
+    // Compute agreement mockup
+    const sum = shap + lime + ig;
+    let agreement = 0;
+    if (sum === 0) {
+      agreement = 0;
+    } else {
+      // High agreement if weights are reasonably balanced, dips if heavily skewed
+      const variance = ((shap - 0.33)**2 + (lime - 0.33)**2 + (ig - 0.33)**2) / 3;
+      agreement = Math.max(10.0, 95.0 - (variance * 180));
+    }
+    
+    // Cap
+    agreement = Math.min(99.9, Math.max(0.1, agreement)).toFixed(1);
+    
+    const simResult = document.getElementById('simResult');
+    if (agreement >= 80) {
+      simResult.className = 'sim-result';
+      simResult.style.color = 'var(--green)';
+      simResult.textContent = `${agreement}% Agreement (High Consensus Check)`;
+    } else if (agreement >= 50) {
+      simResult.className = 'sim-result';
+      simResult.style.color = 'var(--blue)';
+      simResult.textContent = `${agreement}% Agreement (Moderate Agreement)`;
+    } else {
+      simResult.className = 'sim-result';
+      simResult.style.color = 'var(--orange)';
+      simResult.textContent = `${agreement}% Agreement (Weak Consensus - Audit Required)`;
+    }
+  };
+
+  // Run sim on load
+  runSim();
+</script>
+</body>
+</html>
