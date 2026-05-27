@@ -14,8 +14,9 @@ Includes:
   - Bayesian / Grid hyperparameter optimisation
   - Model comparison dashboard
   - Persisting models + SHAP explainers
+  - Feature engineering ablation study  [v3.0]
 
-Author: Priyanshu K. Sharma  |  Enhanced 2025
+Author: Priyanshu K. Sharma  |  Enhanced v3.0 (2026)
 """
 
 from __future__ import annotations
@@ -472,28 +473,139 @@ def save_artifacts(
 # MAIN
 # ─────────────────────────────────────────────
 
+# ─────────────────────────────────────────────
+# ABLATION STUDY  (v3.0)
+# ─────────────────────────────────────────────
+
+def feature_importance_ablation(
+    filepath: str = "breast-cancer.csv",
+    out_dir: str = ".",
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """
+    Ablation study: measure the incremental impact of each engineered feature.
+
+    Configurations tested (cumulative):
+      0. Baseline — 30 raw features
+      1. + perimeter_area_ratio
+      2. + concavity_to_points
+      3. + radius_growth
+      4. + compactness_growth  (full, 34 features)
+
+    Uses Random Forest (n_estimators=200) with 5-fold CV for each config.
+    Saves results to <out_dir>/ablation_results.json.
+
+    Returns
+    -------
+    pd.DataFrame with columns: configuration, n_features, accuracy, f1, roc_auc
+    """
+    from sklearn.ensemble import RandomForestClassifier
+    from sklearn.model_selection import StratifiedKFold, cross_validate
+    from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+    print("\n[Ablation] Starting feature engineering ablation study …")
+
+    # ── Load raw data ──────────────────────────────────────
+    df = pd.read_csv(filepath)
+    df.drop(columns=["id", "Unnamed: 32"], errors="ignore", inplace=True)
+
+    le = LabelEncoder()
+    y = le.fit_transform(df["diagnosis"].values)
+    X_raw = df.drop(columns=["diagnosis"]).copy()
+
+    # ── Engineered features (cumulative additions) ─────────────────
+    configs: list[dict] = [
+        {"name": "Baseline (30 raw)",        "extra": []},
+        {"name": "+ Perimeter-Area Ratio",     "extra": ["perimeter_area_ratio"]},
+        {"name": "+ Concavity-Points Ratio",   "extra": ["perimeter_area_ratio", "concavity_to_points"]},
+        {"name": "+ Radius Growth",            "extra": ["perimeter_area_ratio", "concavity_to_points", "radius_growth"]},
+        {"name": "+ Compactness Growth (full)", "extra": ["perimeter_area_ratio", "concavity_to_points", "radius_growth", "compactness_growth"]},
+    ]
+
+    def _add_features(X: pd.DataFrame, extras: list[str]) -> pd.DataFrame:
+        X = X.copy()
+        if "perimeter_area_ratio" in extras and {"perimeter_mean", "area_mean"}.issubset(X.columns):
+            X["perimeter_area_ratio"] = X["perimeter_mean"] / (X["area_mean"] + 1e-9)
+        if "concavity_to_points" in extras and {"concavity_mean", "concave points_mean"}.issubset(X.columns):
+            X["concavity_to_points"] = X["concavity_mean"] / (X["concave points_mean"] + 1e-9)
+        if "radius_growth" in extras and {"radius_worst", "radius_mean"}.issubset(X.columns):
+            X["radius_growth"] = X["radius_worst"] - X["radius_mean"]
+        if "compactness_growth" in extras and {"compactness_worst", "compactness_mean"}.issubset(X.columns):
+            X["compactness_growth"] = X["compactness_worst"] - X["compactness_mean"]
+        return X
+
+    cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=random_state)
+    model = RandomForestClassifier(n_estimators=200, class_weight="balanced",
+                                   random_state=random_state, n_jobs=-1)
+
+    rows: list[dict] = []
+    for cfg in configs:
+        X_cfg = _add_features(X_raw, cfg["extra"])
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X_cfg)
+
+        cv_results = cross_validate(
+            model, X_scaled, y, cv=cv,
+            scoring=["accuracy", "f1", "roc_auc"],
+            n_jobs=-1,
+        )
+        row = {
+            "configuration": cfg["name"],
+            "n_features": X_cfg.shape[1],
+            "accuracy": round(cv_results["test_accuracy"].mean(), 4),
+            "f1": round(cv_results["test_f1"].mean(), 4),
+            "roc_auc": round(cv_results["test_roc_auc"].mean(), 4),
+            "accuracy_std": round(cv_results["test_accuracy"].std(), 4),
+            "roc_auc_std": round(cv_results["test_roc_auc"].std(), 4),
+        }
+        rows.append(row)
+        print(f"  [{row['n_features']:2d} feats] {cfg['name']:35s} "
+              f"Acc={row['accuracy']:.4f}  F1={row['f1']:.4f}  AUC={row['roc_auc']:.4f}")
+
+    ablation_df = pd.DataFrame(rows)
+
+    # Save to JSON for paper reference
+    out_path = Path(out_dir) / "ablation_results.json"
+    ablation_df.to_json(out_path, orient="records", indent=2)
+    print(f"[Ablation] Results saved to '{out_path}'")
+
+    return ablation_df
+
+
+# ─────────────────────────────────────────────
+# MAIN
+# ─────────────────────────────────────────────
+
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="XAI Enhanced Model Trainer")
+    parser = argparse.ArgumentParser(description="XAI Enhanced Model Trainer v3.0")
     parser.add_argument("--data", default="breast-cancer.csv")
     parser.add_argument("--out", default=".")
     parser.add_argument("--nn", action="store_true", help="Include PyTorch MLP")
     parser.add_argument("--optimise", default=None,
                         help="Run hyperparameter search for model name")
+    parser.add_argument("--ablation", action="store_true",
+                        help="Run feature engineering ablation study (v3.0)")
     args = parser.parse_args()
 
-    X_train, X_test, y_train, y_test, features, scaler, encoder = \
-        load_and_preprocess(args.data)
-
-    if args.optimise:
+    if args.ablation:
+        abl_df = feature_importance_ablation(args.data, out_dir=args.out)
+        print("\n[Ablation] Summary:")
+        print(abl_df.to_string(index=False))
+    elif args.optimise:
+        X_train, X_test, y_train, y_test, features, scaler, encoder = \
+            load_and_preprocess(args.data)
         best_model = optimise_model(args.optimise, X_train, y_train)
         registry = {args.optimise: best_model}
         from sklearn.metrics import classification_report as cr
         y_pred = best_model.predict(X_test)
         print(cr(y_test, y_pred))
     else:
+        X_train, X_test, y_train, y_test, features, scaler, encoder = \
+            load_and_preprocess(args.data)
         models, metrics_df = train_and_evaluate(
             X_train, X_test, y_train, y_test, features, include_nn=args.nn
         )
         save_artifacts(models, scaler, encoder, features, metrics_df, out_dir=args.out)
+
