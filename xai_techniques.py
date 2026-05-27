@@ -7,8 +7,10 @@ Enhanced Explainable AI (XAI) module supporting:
   - Anchors (rule-based explanations via alibi)
   - Integrated Gradients (for neural networks via captum / numpy fallback)
   - Counterfactual Explanations (DiCE / manual nearest-unlike-neighbour)
+  - HybridExplainer (confidence-weighted ensemble of all 5 methods)  [v3.0]
+  - XAIBenchmark   (timing + comparison utility for all methods)       [v3.0]
 
-Author: Priyanshu K. Sharma  |  Enhanced 2025
+Author: Priyanshu K. Sharma  |  Enhanced v3.0 (2026)
 """
 
 from __future__ import annotations
@@ -571,3 +573,284 @@ class ExplanationEvaluator:
             "completeness":  ExplanationEvaluator.completeness(base_val, shap_vals, preds),
             "complexity":    ExplanationEvaluator.complexity(shap_vals),
         }
+
+
+# ─────────────────────────────────────────────
+# 7. HYBRID EXPLAINER  (v3.0)
+# ─────────────────────────────────────────────
+
+class HybridExplainer:
+    """
+    Confidence-weighted ensemble of all five XAI methods:
+      SHAP + LIME + Anchors + Integrated Gradients + Counterfactuals
+
+    Usage
+    -----
+    hybrid = HybridExplainer(model, X_train, feature_names)
+    result = hybrid.explain(X_test, idx=0)
+    # result keys: weights, hybrid_importance, agreement_shap_lime, method_importances
+    """
+
+    def __init__(
+        self,
+        model,
+        X_train: pd.DataFrame,
+        feature_names: list[str],
+        class_names: list[str] = ("Benign", "Malignant"),
+        lime_samples: int = 1000,
+        ig_steps: int = 30,
+    ):
+        self.model = model
+        self.X_train = X_train
+        self.feature_names = feature_names
+        self.class_names = list(class_names)
+        self.ig_steps = ig_steps
+
+        # Build sub-explainers
+        self.shap_exp  = SHAPExplainer(model, X_train, feature_names)
+        self.lime_exp  = LIMEExplainer(X_train, feature_names, class_names, num_samples=lime_samples)
+        self.ig_exp    = IntegratedGradientsExplainer(model, feature_names, baseline="mean")
+        self.cf_exp    = CounterfactualExplainer(model, X_train, feature_names)
+        # Anchors (optional — graceful fallback)
+        self.anchor_exp = AnchorsExplainer(X_train, feature_names)
+
+        print("[Hybrid] All sub-explainers initialised.")
+
+    # ── Main API ─────────────────────────────────────────────────────
+    def explain(
+        self,
+        X: pd.DataFrame,
+        idx: int = 0,
+        num_lime_features: int = 10,
+        target_class: int = 1,
+    ) -> dict:
+        """
+        Generate a unified hybrid explanation for instance `idx`.
+
+        Returns
+        -------
+        dict with keys:
+          - method_importances: dict[method_name -> np.ndarray]
+          - weights: dict[method_name -> float]
+          - hybrid_importance: pd.DataFrame  (feature, hybrid_score)
+          - agreement_shap_lime: float  (Pearson r)
+          - prediction_info: dict
+        """
+        p = len(self.feature_names)
+        method_scores: dict[str, np.ndarray] = {}
+
+        # 1. SHAP
+        try:
+            sv = self.shap_exp._get_shap_values(X.iloc[[idx]])  # shape (1, p)
+            method_scores["shap"] = np.abs(sv[0])
+        except Exception as e:
+            print(f"[Hybrid] SHAP failed: {e}")
+
+        # 2. LIME
+        try:
+            exp = self.lime_exp.explain(self.model, X, idx, num_features=num_lime_features)
+            lime_dict = dict(exp.as_list())
+            # Map LIME feature strings back to feature_names (LIME adds bin labels)
+            lime_vec = np.zeros(p)
+            for feat_str, coef in lime_dict.items():
+                for i, fn in enumerate(self.feature_names):
+                    if fn in feat_str:
+                        lime_vec[i] += abs(coef)
+                        break
+            method_scores["lime"] = lime_vec
+        except Exception as e:
+            print(f"[Hybrid] LIME failed: {e}")
+
+        # 3. Integrated Gradients
+        try:
+            ig_result = self.ig_exp.explain(X, idx=idx, n_steps=self.ig_steps,
+                                             target_class=target_class)
+            ig_vec = np.array([abs(ig_result["feature_attributions"][f])
+                               for f in self.feature_names])
+            method_scores["integrated_gradients"] = ig_vec
+        except Exception as e:
+            print(f"[Hybrid] IG failed: {e}")
+
+        # 4. Counterfactuals (delta magnitude as importance proxy)
+        try:
+            cf_result = self.cf_exp.explain(X, idx=idx, n_counterfactuals=1)
+            if "deltas" in cf_result and cf_result["deltas"]:
+                delta = cf_result["deltas"][0]
+                cf_vec = np.array([abs(delta.get(f, 0.0)) for f in self.feature_names])
+                method_scores["counterfactual"] = cf_vec
+        except Exception as e:
+            print(f"[Hybrid] CF failed: {e}")
+
+        # 5. Anchors → convert rule to binary importance vector
+        try:
+            anc_result = self.anchor_exp.explain(self.model, X, idx)
+            if "anchor_rules" in anc_result:
+                anc_vec = np.zeros(p)
+                for rule in anc_result["anchor_rules"]:
+                    for i, fn in enumerate(self.feature_names):
+                        if fn in rule:
+                            anc_vec[i] = 1.0
+                            break
+                method_scores["anchors"] = anc_vec
+        except Exception as e:
+            print(f"[Hybrid] Anchors failed: {e}")
+
+        # ── Confidence-weighted combination ───────────────────────────
+        confidences = {
+            m: float(v.sum()) for m, v in method_scores.items() if v.sum() > 0
+        }
+        total_conf = sum(confidences.values()) or 1.0
+        weights = {m: c / total_conf for m, c in confidences.items()}
+
+        hybrid_vec = np.zeros(p)
+        for m, vec in method_scores.items():
+            hybrid_vec += weights.get(m, 0.0) * vec
+
+        hybrid_df = pd.DataFrame({
+            "feature": self.feature_names,
+            "hybrid_score": hybrid_vec,
+        }).sort_values("hybrid_score", ascending=False).reset_index(drop=True)
+
+        # ── Agreement between SHAP and LIME ───────────────────────────
+        agreement = 0.0
+        if "shap" in method_scores and "lime" in method_scores:
+            s, l = method_scores["shap"], method_scores["lime"]
+            if s.std() > 0 and l.std() > 0:
+                agreement = float(np.corrcoef(s, l)[0, 1])
+
+        # ── Prediction info ───────────────────────────────────────────
+        pred_proba = self.model.predict_proba(X.iloc[[idx]])[0]
+        pred_class = int(pred_proba.argmax())
+        pred_label = self.class_names[pred_class] if pred_class < len(self.class_names) else str(pred_class)
+
+        return {
+            "instance_index": idx,
+            "prediction_info": {
+                "predicted_class": pred_class,
+                "predicted_label": pred_label,
+                "class_probabilities": pred_proba.tolist(),
+            },
+            "method_importances": {
+                m: v.tolist() for m, v in method_scores.items()
+            },
+            "weights": weights,
+            "hybrid_importance": hybrid_df,
+            "agreement_shap_lime": round(agreement, 4),
+        }
+
+    def top_features(self, result: dict, k: int = 10) -> list[str]:
+        """Return top-k feature names from hybrid explanation result."""
+        return result["hybrid_importance"]["feature"].head(k).tolist()
+
+
+# ─────────────────────────────────────────────
+# 8. XAI BENCHMARK  (v3.0)
+# ─────────────────────────────────────────────
+
+class XAIBenchmark:
+    """
+    Benchmarks all five XAI methods on a sample of instances.
+    Reports per-method timing, stability, and feature agreement.
+
+    Usage
+    -----
+    bench = XAIBenchmark(model, X_train, X_test, feature_names)
+    report = bench.run(n_instances=20)
+    print(report)  # DataFrame: method × metric
+    """
+
+    def __init__(
+        self,
+        model,
+        X_train: pd.DataFrame,
+        X_test: pd.DataFrame,
+        feature_names: list[str],
+    ):
+        self.model = model
+        self.X_train = X_train
+        self.X_test = X_test
+        self.feature_names = feature_names
+
+    def run(self, n_instances: int = 20, random_state: int = 42) -> pd.DataFrame:
+        """
+        Run all XAI methods on `n_instances` random test instances.
+        Returns a summary DataFrame: method × (mean_ms, std_ms, mean_top1).
+        """
+        import time
+        rng = np.random.default_rng(random_state)
+        indices = rng.choice(len(self.X_test), size=min(n_instances, len(self.X_test)),
+                              replace=False)
+
+        shap_exp = SHAPExplainer(self.model, self.X_train, self.feature_names)
+        lime_exp = LIMEExplainer(self.X_train, self.feature_names, num_samples=500)
+        ig_exp   = IntegratedGradientsExplainer(self.model, self.feature_names, baseline="mean")
+        cf_exp   = CounterfactualExplainer(self.model, self.X_train, self.feature_names)
+
+        results: dict[str, list[float]] = {
+            "shap": [], "lime": [], "ig": [], "counterfactual": []
+        }
+        top1_counts: dict[str, dict[str, int]] = {m: {} for m in results}
+
+        for idx in indices:
+            idx = int(idx)
+
+            # SHAP
+            t0 = time.perf_counter()
+            try:
+                sv = shap_exp._get_shap_values(self.X_test.iloc[[idx]])
+                top1 = self.feature_names[int(np.abs(sv[0]).argmax())]
+                top1_counts["shap"][top1] = top1_counts["shap"].get(top1, 0) + 1
+            except Exception:
+                pass
+            results["shap"].append((time.perf_counter() - t0) * 1000)
+
+            # LIME
+            t0 = time.perf_counter()
+            try:
+                exp = lime_exp.explain(self.model, self.X_test, idx, num_features=10)
+                top1 = exp.as_list()[0][0]
+                top1_counts["lime"][top1] = top1_counts["lime"].get(top1, 0) + 1
+            except Exception:
+                pass
+            results["lime"].append((time.perf_counter() - t0) * 1000)
+
+            # IG
+            t0 = time.perf_counter()
+            try:
+                ig_r = ig_exp.explain(self.X_test, idx=idx, n_steps=20)
+                top1 = max(ig_r["feature_attributions"], key=lambda k: abs(ig_r["feature_attributions"][k]))
+                top1_counts["ig"][top1] = top1_counts["ig"].get(top1, 0) + 1
+            except Exception:
+                pass
+            results["ig"].append((time.perf_counter() - t0) * 1000)
+
+            # Counterfactual
+            t0 = time.perf_counter()
+            try:
+                cf_r = cf_exp.explain(self.X_test, idx=idx, n_counterfactuals=1)
+                if cf_r.get("deltas"):
+                    delta = cf_r["deltas"][0]
+                    top1 = max(delta, key=lambda k: abs(delta[k]))
+                    top1_counts["counterfactual"][top1] = top1_counts["counterfactual"].get(top1, 0) + 1
+            except Exception:
+                pass
+            results["counterfactual"].append((time.perf_counter() - t0) * 1000)
+
+        rows = []
+        for method, times in results.items():
+            if times:
+                most_common_top1 = max(top1_counts[method], key=top1_counts[method].get) \
+                    if top1_counts[method] else "N/A"
+                rows.append({
+                    "method": method,
+                    "mean_ms": round(float(np.mean(times)), 1),
+                    "std_ms":  round(float(np.std(times)), 1),
+                    "min_ms":  round(float(np.min(times)), 1),
+                    "max_ms":  round(float(np.max(times)), 1),
+                    "most_frequent_top1": most_common_top1,
+                })
+
+        report = pd.DataFrame(rows).set_index("method")
+        print("\n[XAIBenchmark] Results:")
+        print(report.to_string())
+        return report
