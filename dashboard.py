@@ -12,8 +12,9 @@ Tabs:
   6. 🔄 Counterfactuals     – "What would need to change?" explorer
   7. 📊 Explanation Quality – Faithfulness, completeness, complexity scores
   8. 🩺 Predict             – Live prediction with full XAI report
+  9. 🔄 Hybrid XAI          – Five-method ensemble & agreement analysis  [v3.0]
 
-Author: Priyanshu K. Sharma  |  Enhanced 2025
+Author: Priyanshu K. Sharma  |  Enhanced v3.0 (2026)
 """
 
 import warnings
@@ -322,6 +323,7 @@ tabs = st.tabs([
     "🔄 Counterfactuals",
     "📊 Explanation Quality",
     "🩺 Predict",
+    "✴️ Hybrid XAI",
 ])
 
 
@@ -916,3 +918,220 @@ with tabs[7]:
                 st.markdown("**🔵 Top risk-reducing features:**")
                 for _, r in top_negative.iterrows():
                     st.markdown(f"- `{r.feature}` = {r.value:.3f}  (SHAP {r.shap:.4f})")
+
+
+# ───────────────────────────────────────────────────────────────────
+# TAB 9 – HYBRID XAI  (v3.0)
+# ───────────────────────────────────────────────────────────────────
+with tabs[8]:
+    st.markdown('<p class="section-header">Hybrid XAI — Five-Method Ensemble Explanation</p>',
+                unsafe_allow_html=True)
+    st.markdown(
+        '<div class="info-box">The Hybrid Explainer combines SHAP, LIME, Integrated Gradients, '
+        'Counterfactuals, and Anchors using confidence-weighted voting. '
+        'Each method\'s weight is proportional to the total magnitude of its feature attributions.</div>',
+        unsafe_allow_html=True,
+    )
+
+    hyb_idx = st.slider("Instance index (Hybrid)", 0, len(X_test) - 1, 0, key="hyb_idx")
+    n_ig_steps = st.slider("IG integration steps", 10, 50, 20, key="hyb_ig_steps")
+    n_lime_feats = st.slider("LIME features", 5, 20, 10, key="hyb_lime_feats")
+
+    if st.button("✴️ Run Hybrid Explanation", key="run_hybrid"):
+        with st.spinner("Running all five XAI methods … (may take ~30s)"):
+
+            p = len(feature_names)
+            method_scores: dict[str, np.ndarray] = {}
+
+            # 1. SHAP
+            try:
+                sv = shap_values_all[hyb_idx]
+                method_scores["SHAP"] = np.abs(sv)
+            except Exception as e:
+                st.warning(f"SHAP skipped: {e}")
+
+            # 2. LIME
+            try:
+                from lime.lime_tabular import LimeTabularExplainer
+                lime_exp_h = LimeTabularExplainer(
+                    X_train.values, feature_names=feature_names,
+                    class_names=["Benign", "Malignant"], mode="classification",
+                    random_state=42,
+                )
+                lime_result = lime_exp_h.explain_instance(
+                    X_test.iloc[hyb_idx].values, model.predict_proba,
+                    num_features=n_lime_feats,
+                )
+                lime_dict = dict(lime_result.as_list())
+                lime_vec = np.zeros(p)
+                for feat_str, coef in lime_dict.items():
+                    for i, fn in enumerate(feature_names):
+                        if fn in feat_str:
+                            lime_vec[i] += abs(coef)
+                            break
+                method_scores["LIME"] = lime_vec
+            except Exception as e:
+                st.warning(f"LIME skipped: {e}")
+
+            # 3. Integrated Gradients
+            try:
+                instance_h = X_test.iloc[hyb_idx].values.astype(float)
+                baseline_h = X_train.mean().values.astype(float)
+                alphas_h = np.linspace(0, 1, n_ig_steps + 1)
+                grads_h = []
+                for alpha in alphas_h:
+                    interp = baseline_h + alpha * (instance_h - baseline_h)
+                    eps = 1e-4
+                    grad = np.zeros(p)
+                    for j in range(p):
+                        xp = interp.copy(); xp[j] += eps
+                        xm = interp.copy(); xm[j] -= eps
+                        fp = model.predict_proba(xp.reshape(1, -1))[0, 1]
+                        fm = model.predict_proba(xm.reshape(1, -1))[0, 1]
+                        grad[j] = (fp - fm) / (2 * eps)
+                    grads_h.append(grad)
+                ig_attrs = np.abs((instance_h - baseline_h) * np.mean(grads_h, axis=0))
+                method_scores["Integrated Gradients"] = ig_attrs
+            except Exception as e:
+                st.warning(f"IG skipped: {e}")
+
+            # 4. Counterfactual deltas
+            try:
+                from sklearn.preprocessing import StandardScaler as SS
+                inst_cf = X_test.iloc[hyb_idx].values
+                orig_pred_cf = int(model.predict(inst_cf.reshape(1, -1))[0])
+                tr_preds_cf = model.predict(X_train)
+                opp_cf = X_train[tr_preds_cf != orig_pred_cf]
+                if len(opp_cf) > 0:
+                    sc_cf = SS(); sc_cf.fit(X_train)
+                    inst_n_cf = sc_cf.transform(inst_cf.reshape(1, -1))[0]
+                    opp_n_cf = sc_cf.transform(opp_cf)
+                    dist_cf = np.linalg.norm(opp_n_cf - inst_n_cf, axis=1)
+                    best_cf = opp_cf.iloc[dist_cf.argmin()].values
+                    cf_vec = np.abs(best_cf - inst_cf)
+                    method_scores["Counterfactual"] = cf_vec
+            except Exception as e:
+                st.warning(f"Counterfactual skipped: {e}")
+
+            # ── Confidence-weighted hybrid ─────────────────────────────────
+            confidences = {m: float(v.sum()) for m, v in method_scores.items() if v.sum() > 0}
+            total_conf = sum(confidences.values()) or 1.0
+            weights = {m: c / total_conf for m, c in confidences.items()}
+
+            hybrid_vec = np.zeros(p)
+            for m, vec in method_scores.items():
+                hybrid_vec += weights.get(m, 0.0) * vec
+
+            hybrid_df = pd.DataFrame({
+                "feature": feature_names,
+                "hybrid_score": hybrid_vec,
+            }).sort_values("hybrid_score", ascending=False).reset_index(drop=True)
+
+            # ── Agreement SHAP ⇔ LIME ─────────────────────────────────────
+            agreement = 0.0
+            if "SHAP" in method_scores and "LIME" in method_scores:
+                s_v, l_v = method_scores["SHAP"], method_scores["LIME"]
+                if s_v.std() > 0 and l_v.std() > 0:
+                    agreement = float(np.corrcoef(s_v, l_v)[0, 1])
+
+        # ── Layout ────────────────────────────────────────────────────
+        pred_label_h = le.inverse_transform([model.predict(X_test.iloc[[hyb_idx]])[0]])[0]
+        pred_prob_h  = model.predict_proba(X_test.iloc[[hyb_idx]])[0]
+        true_label_h = le.inverse_transform([y_test[hyb_idx]])[0]
+        color_h = "#f472b6" if pred_label_h == "M" else "#6ee7f7"
+
+        st.markdown(
+            f'<div class="metric-card" style="margin-bottom:1rem">'
+            f'<span style="color:{color_h};font-size:1.4rem;font-weight:700">'
+            f'Predicted: {pred_label_h}</span> '
+            f'&nbsp;|&nbsp; True: {true_label_h} '
+            f'&nbsp;|&nbsp; P(M) = {pred_prob_h[1]:.1%} '
+            f'&nbsp;|&nbsp; 🤝 SHAP⇔LIME: ρ = {agreement:.3f}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+        col_left, col_right = st.columns([3, 1])
+
+        with col_left:
+            # Hybrid importance bar chart (top 20)
+            top20 = hybrid_df.head(20).sort_values("hybrid_score", ascending=True)
+            colors_h = [
+                f"rgba(167,139,250,{0.4 + 0.6 * (i / len(top20))})"
+                for i in range(len(top20))
+            ]
+            fig_hyb = go.Figure(go.Bar(
+                x=top20["hybrid_score"],
+                y=top20["feature"],
+                orientation="h",
+                marker_color=colors_h,
+                hovertemplate="%{y}: %{x:.4f}<extra></extra>",
+            ))
+            fig_hyb.update_layout(
+                **PLOTLY_DARK, height=550,
+                title=f"Hybrid Feature Importance — Instance {hyb_idx}",
+                xaxis_title="Weighted hybrid score",
+            )
+            st.plotly_chart(fig_hyb, use_container_width=True)
+
+        with col_right:
+            # Method weight pie chart
+            if weights:
+                pie_fig = go.Figure(go.Pie(
+                    labels=list(weights.keys()),
+                    values=list(weights.values()),
+                    hole=0.45,
+                    marker_colors=["#6ee7f7", "#a78bfa", "#f472b6", "#34d399", "#fbbf24"],
+                    textinfo="label+percent",
+                    hovertemplate="%{label}: %{percent}<extra></extra>",
+                ))
+                pie_fig.update_layout(
+                    **PLOTLY_DARK, height=300,
+                    title="Method Weights",
+                    showlegend=False,
+                    margin=dict(t=40, b=0, l=0, r=0),
+                )
+                st.plotly_chart(pie_fig, use_container_width=True)
+
+            st.markdown("**Top 5 hybrid features:**")
+            for _, row_h in hybrid_df.head(5).iterrows():
+                st.markdown(f"- `{row_h['feature']}` → {row_h['hybrid_score']:.4f}")
+
+        st.divider()
+        st.markdown('<p class="section-header">Method Attribution Heatmap (top 15 features)</p>',
+                    unsafe_allow_html=True)
+
+        top15_feats = hybrid_df["feature"].head(15).tolist()
+        top15_idx   = [feature_names.index(f) for f in top15_feats]
+
+        heat_data, heat_methods = [], []
+        for m_name, m_vec in method_scores.items():
+            heat_data.append([m_vec[i] for i in top15_idx])
+            heat_methods.append(m_name)
+
+        if heat_data:
+            heat_arr = np.array(heat_data)
+            # Normalise each method row to [0, 1]
+            row_max = heat_arr.max(axis=1, keepdims=True)
+            row_max[row_max == 0] = 1
+            heat_norm = heat_arr / row_max
+
+            fig_heat = go.Figure(go.Heatmap(
+                z=heat_norm,
+                x=top15_feats,
+                y=heat_methods,
+                colorscale=[[0, "#0d0f18"], [0.5, "#6ee7f7"], [1, "#a78bfa"]],
+                text=[[f"{heat_arr[i,j]:.3f}" for j in range(len(top15_feats))]
+                      for i in range(len(heat_methods))],
+                texttemplate="%{text}",
+                hovertemplate="%{y} | %{x}: %{text}<extra></extra>",
+                showscale=True,
+                colorbar=dict(title="Normalised", tickfont=dict(color="#e2e8f0")),
+            ))
+            fig_heat.update_layout(
+                **PLOTLY_DARK, height=320,
+                title="Per-Method Normalised Importance (top 15 hybrid features)",
+                xaxis_tickangle=-35,
+            )
+            st.plotly_chart(fig_heat, use_container_width=True)
+
