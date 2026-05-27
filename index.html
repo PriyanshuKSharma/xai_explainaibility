@@ -436,14 +436,28 @@
     transform: translateY(-50%) translateX(0);
   }
 
-  /* ─── INTERACTIVE DRAWER MODAL ─── */
-  dialog.drawer {
+  /* ─── INTERACTIVE DRAWER PANEL (inline) ─── */
+  .drawer-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0,0,0,0.0);
+    z-index: 998;
+    opacity: 0;
+    pointer-events: none;
+    transition: background-color 0.25s ease, opacity 0.25s ease;
+  }
+  .drawer-backdrop.open {
+    background-color: rgba(10,12,16,0.75);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .drawer-panel {
     position: fixed;
     top: 0; right: 0; bottom: 0;
     width: 650px;
     max-width: 95%;
     height: 100vh;
-    border: none;
     border-left: 1px solid var(--border);
     background: var(--bg2);
     color: var(--text);
@@ -451,39 +465,14 @@
     box-shadow: -10px 0 35px rgba(0,0,0,0.6);
     display: flex;
     flex-direction: column;
-    z-index: 1000;
-    outline: none;
-    
-    /* Animation & top-layer */
-    opacity: 0;
+    z-index: 999;
     transform: translateX(100%);
-    transition: opacity 0.3s, transform 0.3s, display 0.3s allow-discrete, overlay 0.3s allow-discrete;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.33s ease;
   }
-  
-  dialog.drawer[open] {
-    opacity: 1;
+  .drawer-panel.open {
     transform: translateX(0);
-    
-    @starting-style {
-      opacity: 0;
-      transform: translateX(100%);
-    }
-  }
-  
-  dialog.drawer::backdrop {
-    background-color: rgba(0, 0, 0, 0);
-    backdrop-filter: blur(0px);
-    transition: display 0.3s allow-discrete, overlay 0.3s allow-discrete, background-color 0.3s ease, backdrop-filter 0.3s ease;
-  }
-  
-  dialog.drawer[open]::backdrop {
-    background-color: rgba(10, 12, 16, 0.75);
-    backdrop-filter: blur(10px);
-    
-    @starting-style {
-      background-color: rgba(0, 0, 0, 0);
-      backdrop-filter: blur(0px);
-    }
+    opacity: 1;
   }
 
   .drawer-header {
@@ -898,11 +887,11 @@
     }
     
     /* Drawer width */
-    dialog.drawer {
+    .drawer-panel {
       width: 100% !important;
       border-left: none;
     }
-    .drawer-body {
+    .drawer-panel {
       padding: 1.5rem 1rem !important;
     }
   }
@@ -920,7 +909,7 @@
   <nav class="nav-links">
     <a href="index.html" class="nav-link active">Dashboard</a>
     <a href="procedures.html" class="nav-link">Procedures</a>
-    <a href="notes.html?file=00_introduction_clinical_trust.md" class="nav-link">Research Notes</a>
+    <a href="#" class="nav-link" id="navNotesLink" data-file="00_introduction_clinical_trust.md">Research Notes</a>
   </nav>
 
   <div class="header-search">
@@ -1569,8 +1558,9 @@
 
 </main>
 
-<!-- Interactive Slide-Over Drawer Modal -->
-<dialog class="drawer" id="noteDrawer" closedby="any" aria-labelledby="drawerTitle">
+<!-- Inline Slide-Over Panel (replaces <dialog>) -->
+<div class="drawer-backdrop" id="drawerBackdrop" aria-hidden="true"></div>
+<aside class="drawer-panel" id="noteDrawer" aria-labelledby="drawerTitle" hidden>
   <div class="drawer-header">
     <div class="drawer-title-area">
       <div class="drawer-num" id="drawerNum">00</div>
@@ -1585,7 +1575,7 @@
     <a href="#" class="drawer-btn primary" id="drawerTabLink" target="_blank">Open in New Tab</a>
     <button class="drawer-btn secondary" id="drawerCopyBtn">Copy Code / Formulas</button>
   </div>
-</dialog>
+</aside>
 
 <!-- No results placeholder -->
 <div class="no-results" id="noResults">
@@ -1692,6 +1682,7 @@
 
   // 3. Interactive Modal Slide-Over Drawer
   const drawer = document.getElementById('noteDrawer');
+  const drawerBackdrop = document.getElementById('drawerBackdrop');
   const drawerClose = document.getElementById('drawerClose');
   const drawerNum = document.getElementById('drawerNum');
   const drawerTitle = document.getElementById('drawerTitle');
@@ -1917,14 +1908,34 @@
       });
     };
     
-    // Open modal via HTML5 <dialog> API
-    drawer.showModal();
+    // Show inline panel and backdrop
+    drawerBackdrop.classList.add('open');
+    drawer.classList.add('open');
+    drawer.removeAttribute('hidden');
+    drawer.setAttribute('aria-hidden', 'false');
   };
 
-  // Close Drawer Modal
-  drawerClose.addEventListener('click', () => {
-    drawer.close();
-  });
+  // Close Drawer Panel
+  const closeDrawer = () => {
+    drawer.classList.remove('open');
+    drawerBackdrop.classList.remove('open');
+    drawer.setAttribute('aria-hidden', 'true');
+    // Hide after transition to avoid abrupt jump
+    setTimeout(() => drawer.setAttribute('hidden', ''), 320);
+  };
+
+  drawerClose.addEventListener('click', closeDrawer);
+  drawerBackdrop.addEventListener('click', closeDrawer);
+
+  // Header "Research Notes" link should open inline panel instead of navigating away
+  const navNotesLink = document.getElementById('navNotesLink');
+  if (navNotesLink) {
+    navNotesLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      const file = navNotesLink.getAttribute('data-file');
+      if (file) openNoteDrawer(file);
+    });
+  }
 
   // Attach dynamic listener to all note cards
   cards.forEach(card => {
@@ -1937,24 +1948,7 @@
     });
   });
 
-  // 5. Browser Fallback click handler for Light Dismiss on Dialog Backdrop
-  if (!('closedBy' in HTMLDialogElement.prototype)) {
-    drawer.addEventListener('click', (event) => {
-      if (event.target !== drawer) return;
-      
-      const rect = drawer.getBoundingClientRect();
-      const isInside = (
-        rect.top <= event.clientY &&
-        event.clientY <= rect.top + rect.height &&
-        rect.left <= event.clientX &&
-        event.clientX <= rect.left + rect.width
-      );
-      
-      if (!isInside) {
-        drawer.close();
-      }
-    });
-  }
+  // (Dialog fallback removed) Backdrop click already handled above for light-dismiss
 
   // --- INTERACTIVE DATASET BROWSER CONTROLLER ---
   let datasetFiltered = [...breastCancerDataset];
