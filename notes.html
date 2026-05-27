@@ -44,7 +44,73 @@
     font-size: 15.5px;
     line-height: 1.7;
     min-height: 100vh;
-    padding: 2rem 1rem 4rem;
+    padding: 80px 1rem 4rem;
+  }
+
+  /* ─── GLOBAL HEADER ─── */
+  .global-header {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    height: 60px;
+    gap: 1.5rem;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    margin-left: 1rem;
+  }
+  .nav-link {
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    padding: 5px 10px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    border: 1px solid transparent;
+  }
+  .nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.05);
+  }
+  .nav-link.active {
+    color: var(--teal);
+    background: var(--teal-glow);
+    border-color: rgba(0, 199, 183, 0.25);
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 14px;
+    color: var(--teal);
+    letter-spacing: 0.04em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    text-decoration: none;
+  }
+  .logo-icon {
+    width: 28px; height: 28px;
+    background: var(--teal);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    color: #000;
+    font-weight: 700;
   }
 
   /* Noise texture overlay */
@@ -359,9 +425,55 @@
   ::-webkit-scrollbar-track { background: var(--bg); }
   ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
   ::-webkit-scrollbar-thumb:hover { background: var(--border); }
+
+  /* ─── RESPONSIVE MEDIA QUERIES ─── */
+  @media (max-width: 900px) {
+    /* Global Header Navigation wrapping */
+    .global-header {
+      height: auto !important;
+      padding: 1rem 1.5rem !important;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.75rem;
+    }
+    .nav-links {
+      margin-left: 0;
+      justify-content: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    body {
+      padding-top: 120px !important; /* More space for stacked navbar */
+    }
+  }
+
+  @media (max-width: 768px) {
+    .container {
+      padding: 1.5rem 1rem !important;
+      border-radius: 8px;
+    }
+    .viewer-footer {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+  }
 </style>
 </head>
 <body>
+
+<!-- GLOBAL NAVIGATION HEADER -->
+<div class="global-header">
+  <a class="logo" href="index.html">
+    <div class="logo-icon">🧬</div>
+    ClinicalXAI
+  </a>
+  <nav class="nav-links">
+    <a href="index.html" class="nav-link">🩺 Dashboard</a>
+    <a href="procedures.html" class="nav-link">📚 Procedures</a>
+    <a href="notes.html?file=00_introduction_clinical_trust.md" class="nav-link active">📝 Research Notes</a>
+  </nav>
+</div>
 
 <div class="container">
   <a href="index.html" class="back-btn">← Back to XAI Dashboard</a>
