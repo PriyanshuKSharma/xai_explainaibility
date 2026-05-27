@@ -1,11 +1,52 @@
-.git
-.gitignore
-xai-env
-__pycache__
+# ─────────────────────────────────────────────
+# .dockerignore — XAI Explainability v3.0
+# Excludes dev files to keep the image lean
+# ─────────────────────────────────────────────
+
+# Virtual environments
+venv/
+.venv/
+env/
+*.egg-info/
+
+# Python cache
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
-.ipynb_checkpoints
-Research Paper
-XAI_algo.ipynb
+.Python
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# Git
+.git/
+.gitignore
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Research & docs (not needed at runtime)
+Research\ Paper/
+*.tex
+*.pdf
+*.bib
+
+# CI / tests
+tests/
+*.log
+
+# Generated artifacts (will be rebuilt during docker build)
+ablation_results.json
+*.log
+
+# Scripts dir (deployment scripts, not needed inside container)
+scripts/
+
+# README
 README.md
