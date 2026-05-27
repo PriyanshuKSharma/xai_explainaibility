@@ -1482,9 +1482,9 @@ python train_model.py
         <li><strong>ECR Repository:</strong> Create an AWS ECR Repository named <code>xai/inference</code>.</li>
         <li><strong>CloudShell Image Build:</strong> Open AWS CloudShell from the console, clone repository, run model training, authenticate Docker, build the container, and push ECR image:
           <pre><code class="language-bash"># Push ECR build
-IMAGE_URI="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/xai/inference:v1"
-docker build -t "${IMAGE_URI}" .
-docker push "${IMAGE_URI}"</code></pre>
+IMAGE_URI="\${AWS_ACCOUNT_ID}.dkr.ecr.\${AWS_REGION}.amazonaws.com/xai/inference:v1"
+docker build -t "\${IMAGE_URI}" .
+docker push "\${IMAGE_URI}"</code></pre>
         </li>
         <li><strong>SageMaker Model:</strong> Go to SageMaker Models, create model using the ECR image URI.</li>
         <li><strong>Endpoint Deployment:</strong> Create endpoint configuration, select instance sizes, and launch Endpoint.</li>
