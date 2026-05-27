@@ -1,15 +1,12 @@
-\documentclass[12pt]{article}
-\usepackage[margin=1in]{geometry}
+\documentclass[journal]{IEEEtran}
 \usepackage{graphicx}
 \usepackage{amsmath}
 \usepackage{hyperref}
-\usepackage{fancyhdr}
-\usepackage{titlesec}
-\usepackage{enumitem}
 \usepackage{caption}
 \usepackage{tcolorbox}
 \usepackage{listings}
-\usepackage{natbib}
+\newcommand{\citep}[1]{\cite{#1}}
+\newcommand{\citet}[1]{\cite{#1}}
 \usepackage{booktabs}
 \usepackage{algorithm}
 \usepackage{algorithmic}
@@ -20,17 +17,10 @@
 \usepackage{array}
 \usetikzlibrary{shapes,arrows,positioning,fit,backgrounds}
 
-\titleformat{\section}{\large\bfseries}{\thesection}{1em}{}
-\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{1em}{}
-
-% \pagestyle{fancy}
-\fancyhf{}
-\rhead{XAI Research Paper}
-\lhead{Comprehensive XAI Framework for Medical Diagnosis}
-\cfoot{\thepage}
-
 \title{A Comprehensive Framework for Explainable Artificial Intelligence in Medical Diagnosis: Comparative Analysis of SHAP, LIME, Anchors, Integrated Gradients, and Counterfactual Explanations}
-\author{Priyanshu Kumar Sharma \\ Ajeenkya D Y Patil University}
+\author{Priyanshu~Kumar~Sharma$^{1}$ and Ravi~Khatri$^{2}$\\
+\small $^{1}$Student, School of Engineering, Ajeenkya D Y Patil University, Pune, India\\
+\small $^{2}$Assistant Professor, School of Engineering, Ajeenkya D Y Patil University, Pune, India}
 
 \begin{document}
 
@@ -40,7 +30,9 @@
 The accelerating deployment of machine learning models in healthcare decision-making demands transparent, interpretable, and regulatory-compliant AI systems. This paper presents a comprehensive comparative analysis of five prominent explainable AI (XAI) techniques—SHAP (SHapley Additive exPlanations), LIME (Local Interpretable Model-agnostic Explanations), Anchors (rule-based explanations), Integrated Gradients (gradient attribution), and Counterfactual Explanations—applied to breast cancer diagnosis using the Wisconsin Breast Cancer Diagnostic dataset. Our novel contributions include: (1) a unified five-method evaluation framework assessing global and local interpretability, computational efficiency, and clinical relevance; (2) a hybrid ensemble explanation methodology that combines the theoretical rigour of SHAP with the local approximations of LIME and the actionable recourse of counterfactuals; (3) an ablation study quantifying the impact of engineered domain features; and (4) a discussion of compliance with the European Union AI Act and GDPR transparency requirements. Experimental results demonstrate that our ensemble framework achieves 97.4\% classification accuracy while producing clinically meaningful explanations validated by healthcare professionals. SHAP provides the most consistent global explanations (stability score: 0.891), LIME excels in local fidelity (fidelity score: 0.923), Anchors produce the most human-readable rule-based justifications (precision: 0.96), Integrated Gradients expose fine-grained attribution paths, and Counterfactuals deliver actionable recourse with an average sparsity of 0.73. Our findings establish practical guidelines for deploying XAI in high-stakes medical environments.
 \end{abstract}
 
-\textbf{Keywords:} Explainable AI, SHAP, LIME, Anchors, Integrated Gradients, Counterfactual Explanations, Healthcare, Machine Learning Interpretability, Medical Diagnosis, EU AI Act, GDPR, Breast Cancer
+\begin{IEEEkeywords}
+Explainable AI, SHAP, LIME, Anchors, Integrated Gradients, Counterfactual Explanations, Healthcare, Machine Learning Interpretability, Medical Diagnosis, EU AI Act, GDPR, Breast Cancer
+\end{IEEEkeywords}
 
 \section{Introduction}
 
@@ -300,10 +292,11 @@ Our implementation leverages:
 
 We trained five classifiers on the engineered feature set (34 features) and evaluated on the held-out test set (20\%, stratified). Table~\ref{tab:model_performance} summarises performance.
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Multi-Model Performance Comparison (34 features, 5-fold CV)}
 \label{tab:model_performance}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lccccc@{}}
 \toprule
 Model & Accuracy & Precision & Recall & F1-Score & ROC-AUC \\
@@ -315,7 +308,8 @@ Gradient Boosting   & 0.947 & 0.944 & 0.971 & 0.957 & 0.988 \\
 Logistic Regression & 0.930 & 0.933 & 0.952 & 0.942 & 0.981 \\
 \textbf{Hybrid Ensemble} & \textbf{0.974} & \textbf{0.978} & \textbf{0.981} & \textbf{0.979} & \textbf{0.995} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 The LightGBM model achieved the highest individual ROC-AUC (0.992) and was selected as the primary model for XAI analysis. The hybrid ensemble (majority vote across all five models) attained 97.4\% accuracy, the highest overall.
@@ -324,10 +318,11 @@ The LightGBM model achieved the highest individual ROC-AUC (0.992) and was selec
 
 Table~\ref{tab:ablation} presents an ablation study isolating the contribution of our four engineered features.
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Ablation Study: Impact of Domain Feature Engineering}
 \label{tab:ablation}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lcccc@{}}
 \toprule
 Configuration & Features & Accuracy & F1-Score & ROC-AUC \\
@@ -338,7 +333,8 @@ Baseline (raw)          & 30 & 0.947 & 0.957 & 0.989 \\
 + Radius Growth         & 33 & 0.960 & 0.967 & 0.992 \\
 \textbf{+ Compactness Growth (full)} & \textbf{34} & \textbf{0.965} & \textbf{0.971} & \textbf{0.993} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Each engineered feature contributes incrementally to model performance. Radius Growth provided the largest individual gain (+1.3\% accuracy), reflecting the clinical significance of size variability in distinguishing malignant tumours.
@@ -402,10 +398,11 @@ The high sparsity (0.862) indicates that model predictions can be reversed by mo
 
 Table~\ref{tab:comparison} provides a structured comparison of all five XAI techniques across the evaluation dimensions defined in Section~3.5.
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Five-Method XAI Comparison}
 \label{tab:comparison}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lrrrrr@{}}
 \toprule
 Metric & SHAP & LIME & Anchors & IG & CF \\
@@ -419,8 +416,12 @@ Human Readability       & Med   & Med   & \textbf{Very High} & Low & High \\
 Actionable Recourse     & No    & No    & Partial   & No   & \textbf{Yes} \\
 Theoretical Guarantees  & Strong & Moderate & Moderate & Strong & Moderate \\
 \bottomrule
-\multicolumn{6}{l}{\small $^*$Precision metric used for Anchors. $^{**}$CF optimises for class-flip, not prediction match.}
-\end{tabular}
+\end{tabular}%
+}
+\vspace{2pt}
+\begin{flushleft}
+\scriptsize $^*$Precision metric used for Anchors. $^{**}$CF optimises for class-flip, not prediction match.
+\end{flushleft}
 \end{table}
 
 \subsection{Hybrid Framework Results}
@@ -440,10 +441,11 @@ The Pearson correlation between SHAP and LIME feature attributions was $\rho = 0
 
 Twelve healthcare professionals (6 oncologists, 4 radiologists, 2 pathologists) evaluated explanations across three dimensions on a 1--5 Likert scale:
 
-\begin{table}[h]
+\begin{table}[htbp]
 \centering
 \caption{Clinical Relevance Ratings by Method (mean, $n=12$ raters)}
 \label{tab:clinical}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{@{}lccccc@{}}
 \toprule
 Dimension & SHAP & LIME & Anchors & IG & Hybrid \\
@@ -454,7 +456,8 @@ Trust Enhancement       & 4.2 & 3.9 & 4.4 & 3.5 & \textbf{4.5} \\
 \midrule
 Composite CR            & 4.03 & 4.07 & 4.40 & 3.47 & \textbf{4.53} \\
 \bottomrule
-\end{tabular}
+\end{tabular}%
+}
 \end{table}
 
 Anchors received the highest individual ratings due to their rule-based format familiar to clinical decision support systems. The hybrid framework attained the highest composite score, benefiting from the combined strengths of all five methods.
@@ -522,32 +525,34 @@ Based on our findings, we recommend a stakeholder-stratified explanation strateg
 \subsection{Technical Implementation Workflows}
 
 \subsubsection{Data Preprocessing and Model Training Workflow}
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.55\linewidth]{Data Preprocessing.png}
+\includegraphics[width=0.95\columnwidth]{Data Preprocessing.png}
 \caption{Data Preprocessing and Feature Engineering Workflow}
 \label{fig:preprocessing}
 \end{figure}
 
 \subsubsection{SHAP Analysis Workflow}
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.55\linewidth]{SHAP.png}
+\includegraphics[width=0.95\columnwidth]{SHAP.png}
 \caption{SHAP Multi-Level Analysis Workflow (Global, Local, Interaction)}
 \label{fig:shap}
 \end{figure}
 
 \subsubsection{LIME Analysis Workflow}
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.55\linewidth]{LIME.png}
+\includegraphics[width=0.95\columnwidth]{LIME.png}
 \caption{LIME Local Surrogate Model and Stability Analysis Workflow}
 \label{fig:lime}
 \end{figure}
 
 \subsubsection{XAI Evaluation Framework Workflow}
-\begin{figure}[h]
+\subsubsection{XAI Evaluation Framework Workflow}
+\begin{figure}[htbp]
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[node distance=1.5cm, auto]
 % Define styles
 \tikzstyle{startstop} = [rectangle, rounded corners, minimum width=2.5cm, minimum height=0.8cm, text centered, draw=black, fill=blue!30]
@@ -583,14 +588,16 @@ Based on our findings, we recommend a stakeholder-stratified explanation strateg
 \draw [arrow] (clinical) -- (results);
 \draw [arrow] (comprehend) -- (results);
 \draw [arrow] (trust) -- (results);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Comprehensive Five-Method XAI Evaluation Framework}
 \label{fig:eval}
 \end{figure}
 
 \subsubsection{Hybrid XAI Ensemble Framework Workflow}
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[node distance=1.2cm, auto]
 \tikzstyle{startstop} = [rectangle, rounded corners, minimum width=2.5cm, minimum height=0.8cm, text centered, draw=black, fill=purple!30]
 \tikzstyle{shap} = [rectangle, minimum width=2.2cm, minimum height=0.8cm, text centered, draw=black, fill=blue!30]
@@ -625,15 +632,16 @@ Based on our findings, we recommend a stakeholder-stratified explanation strateg
 \draw [arrow] (combine) -- (rank);
 \draw [arrow] (rank) -- (report);
 \draw [arrow] (report) -- (output);
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{Novel Five-Method Hybrid XAI Ensemble Framework}
 \label{fig:hybrid}
 \end{figure}
 
 \subsubsection{Complete XAI Analysis Pipeline}
-\begin{figure}[h]
+\begin{figure}[htbp]
 \centering
-\includegraphics[width=0.55\linewidth]{CompleteXAI.png}
+\includegraphics[width=0.95\columnwidth]{CompleteXAI.png}
 \caption{Complete XAI Analysis Pipeline (Data to Clinical Insight)}
 \label{fig:pipeline}
 \end{figure}
@@ -644,9 +652,11 @@ All code implementations are available in the accompanying GitHub repository and
 
 \begin{lstlisting}[language=Python, caption=Google Colab Quickstart]
 # Install all dependencies
-!pip install shap lime alibi dice-ml captum optuna \
-             xgboost lightgbm scikit-learn pandas \
-             numpy matplotlib seaborn fastapi uvicorn streamlit
+!pip install shap lime alibi dice-ml \
+captum optuna \
+xgboost lightgbm scikit-learn pandas \
+numpy matplotlib seaborn \
+fastapi uvicorn streamlit
 
 # Clone repository and upload dataset
 from google.colab import files
@@ -654,7 +664,8 @@ uploaded = files.upload()   # upload breast-cancer.csv
 
 # Train models and run full XAI analysis
 import subprocess
-subprocess.run(["python", "train_model_enhanced.py"])
+subprocess.run(["python", 
+"train_model_enhanced.py"])
 \end{lstlisting}
 
 \section{Conclusion}
@@ -671,7 +682,7 @@ Future work will extend this framework to multi-modal medical data, LLM-assisted
 
 The authors thank the healthcare professionals who participated in the clinical relevance evaluation, the open-source communities behind SHAP, LIME, alibi, DiCE, and captum, and Ajeenkya D Y Patil University for research support.
 
-\bibliographystyle{plainnat}
+\bibliographystyle{IEEEtran}
 \begin{thebibliography}{99}
 
 \bibitem{topol2019high}

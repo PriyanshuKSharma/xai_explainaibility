@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.27)  27 MAY 2026 16:02
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.5.27)  27 MAY 2026 16:07
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -35,7 +35,7 @@ Enter file name:
          
 l.3 \usepackage
                {graphicx}^^M
-*** (cannot \read from terminal in nonstop modes)
+End of file on the terminal!
 
  
 Here is how much of TeX's memory you used:
